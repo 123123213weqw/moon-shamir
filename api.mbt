@@ -13,6 +13,7 @@ pub fn run(request : Value) -> Value raise InputError {
     String("combine") => combine_with(request)
     String("diagnose") => diagnose_with(request)
     String("verify") => verify_with(request)
+    String("reshare") => reshare_with(request)
     String(other) => raise InputError("unsupported operation: " + other)
     _ => raise InputError("missing field: operation")
   }
@@ -25,12 +26,10 @@ pub fn run(request : Value) -> Value raise InputError {
 fn share_to_value_as(share : Share, encoding : String) -> Value {
   let payload = if encoding == "base64" {
     String(share_bytes_to_base64(share.data))
+  } else if encoding == "words" {
+    String(mnemonic_encode(share.index, share.threshold, share.data).join(" "))
   } else {
-    if encoding == "words" {
-      String(mnemonic_encode(share.index, share.threshold, share.data).join(" "))
-    } else {
-      String(to_hex(share.data))
-    }
+    String(to_hex(share.data))
   }
   record([
     ("index", Number(share.index.to_double())),
@@ -101,8 +100,7 @@ fn share_from_value(value : Value) -> Share raise InputError {
 /// pair reproduces the same shares everywhere.
 fn split_with(request : Value) -> Value raise InputError {
   fields_only(request, [
-    "operation", "secret_hex", "secret_text", "threshold", "shares", "seed",
-    "share_encoding",
+    "operation", "secret_hex", "secret_text", "threshold", "shares", "seed", "share_encoding",
   ])
   let secret = match (get(request, "secret_hex"), get(request, "secret_text")) {
     (Null, Null) => raise InputError("missing field: secret_hex")
@@ -265,4 +263,74 @@ fn verify_with(request : Value) -> Value raise InputError {
 ///|
 fn threshold_of(shares : Array[Share]) -> Int32 {
   shares[0].threshold
+}
+
+///|
+/// Mint a fresh split from k old shares without the secret passing
+/// through memory: a random polynomial with zero constant term is added
+/// per byte, drawn from the new seed, and each new share evaluates the
+/// sum at a fresh x. The threshold may rise but never fall below the old
+/// one; a new x may not collide with an old share index.
+fn reshare_with(request : Value) -> Value raise InputError {
+  fields_only(request, [
+    "operation", "shares", "threshold_new", "shares_new", "seed",
+    "share_encoding",
+  ])
+  let raw = arr(required(request, "shares"))
+  if raw.length() < 2 || raw.length() > 255 {
+    raise InputError("shares must list 2..255 shares")
+  }
+  let threshold_new = num(required(request, "threshold_new"))
+  if threshold_new.floor() != threshold_new ||
+    threshold_new < 2.0 ||
+    threshold_new > 255.0 {
+    raise InputError("threshold_new must be a whole number 2..255")
+  }
+  let shares_new = num(required(request, "shares_new"))
+  if shares_new.floor() != shares_new ||
+    shares_new < 2.0 ||
+    shares_new > 255.0 {
+    raise InputError("shares_new must be a whole number 2..255")
+  }
+  let seed = match get(request, "seed") {
+    Null => 0.0
+    other => num(other)
+  }
+  if seed.floor() != seed || seed < 0.0 || seed > 9007199254740991.0 {
+    raise InputError("seed must be a whole number 0..9007199254740991")
+  }
+  let share_encoding = match get(request, "share_encoding") {
+    Null => "hex"
+    String("hex") => "hex"
+    String("base64") => "base64"
+    String("words") => "words"
+    String(other) =>
+      raise InputError(
+        "share_encoding must be hex, base64 or words, found: " + other,
+      )
+    _ => raise InputError("share_encoding must be hex, base64 or words")
+  }
+  let parsed : Array[Share] = []
+  for entry in raw {
+    parsed.push(share_from_value(entry))
+  }
+  let minted = shamir_reshare(
+    parsed,
+    threshold_new.to_int(),
+    shares_new.to_int(),
+    seed.to_uint64(),
+  )
+  let encoded : Array[Value] = []
+  for share in minted {
+    encoded.push(share_to_value_as(share, share_encoding))
+  }
+  record([
+    ("algorithm", String("shamir-gf256")),
+    ("threshold_new", Number(threshold_new)),
+    ("shares_new", Number(shares_new)),
+    ("seed", Number(seed)),
+    ("digest", String(digest_hex(minted[0].digest))),
+    ("share_encoding", String(share_encoding)),
+    ("share_list", Array(encoded)),
+  ])
 }

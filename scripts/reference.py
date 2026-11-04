@@ -237,6 +237,64 @@ def main():
         answer = run({"operation": "combine", "shares": picked})
         assert answer["verified"] is True and answer["secret_hex"] == secret, f"words-combine-{iteration}"
         checked += 1
+    # Reshare: the oracle mints independently - interpolating f at each
+    # new x with its own Lagrange, drawing h with its own SplitMix64 -
+    # and demands share-for-share agreement plus the algebraic outcomes.
+    def interpolate_at(points, at):
+        acc = 0
+        for i, (xi, yi) in enumerate(points):
+            weight = 1
+            for j, (xj, _) in enumerate(points):
+                if i != j:
+                    weight = gf_mul(weight, gf_mul(at ^ xj, gf_inv(xi ^ xj)))
+            acc ^= gf_mul(yi, weight)
+        return acc
+
+    def reshare(old_shares, threshold_new, shares_new, seed):
+        threshold = old_shares[0]['threshold']
+        digest = int(old_shares[0]['digest'], 16)
+        width = len(old_shares[0]['data']) // 2
+        basis = sorted(old_shares, key=lambda s: s['index'])[:threshold]
+        rng = SplitMix64(seed)
+        hs = [[0] + [rng.next_byte() for _ in range(threshold_new - 1)]
+              for _ in range(width)]
+        taken = {s['index'] for s in old_shares}
+        out, x = [], 0
+        while len(out) < shares_new:
+            x += 1
+            if x in taken:
+                continue
+            data = bytearray()
+            for b in range(width):
+                points = [(s['index'], bytes.fromhex(s['data'])[b]) for s in basis]
+                data.append(interpolate_at(points, x) ^ gf_eval(hs[b], x))
+            out.append({'index': x, 'threshold': threshold_new,
+                'digest': f'{digest:08x}', 'data': bytes(data).hex(),
+                'encoding': 'hex'})
+        return out
+
+    for iteration in range(10):
+        length = rng.randrange(1, 9)
+        secret = bytes(rng.randrange(256) for _ in range(length)).hex()
+        threshold = rng.randrange(2, 4)
+        shares = rng.randrange(threshold, 7)
+        seed = rng.randrange(0, 1 << 32)
+        made = split(bytes.fromhex(secret), threshold, shares, seed)
+        new_threshold = rng.randrange(threshold, 6)
+        new_count = rng.randrange(new_threshold, 9)
+        new_seed = rng.randrange(0, 1 << 32)
+        report = run({"operation": "reshare", "shares": made[:threshold],
+            "threshold_new": new_threshold, "shares_new": new_count,
+            "seed": new_seed})
+        want = reshare(made[:threshold], new_threshold, new_count, new_seed)
+        assert report["share_list"] == want, f'reshare-{iteration}'
+        picked = rng.sample(report["share_list"], new_threshold)
+        answer = run({"operation": "combine", "shares": picked})
+        assert answer["verified"] is True and answer["secret_hex"] == secret, f'reshare-recover-{iteration}'
+        old_pick = rng.sample(made, threshold)
+        still = run({"operation": "combine", "shares": old_pick})
+        assert still["verified"] is True, f'reshare-old-{iteration}'
+        checked += 1
     # Determinism: one fixed request, twice, byte-identical answers.
     request = {'operation': 'split', 'secret_hex': 'cafebabe', 'threshold': 2,
         'shares': 3, 'seed': 7}
