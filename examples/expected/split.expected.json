@@ -1,0 +1,40 @@
+{
+  "algorithm": "shamir-gf256",
+  "secret_bytes": 16,
+  "threshold": 3,
+  "shares": 5,
+  "seed": 20261104,
+  "digest": "8407759b",
+  "share_list": [
+    {
+      "index": 1,
+      "threshold": 3,
+      "digest": "8407759b",
+      "data": "89ecf44f638ee2044c2b74a3c06be26e"
+    },
+    {
+      "index": 2,
+      "threshold": 3,
+      "digest": "8407759b",
+      "data": "678dbcb53f2fae918741a2c1e25b0594"
+    },
+    {
+      "index": 3,
+      "threshold": 3,
+      "digest": "8407759b",
+      "data": "ee706ac918f42ae243f37cd9eeed0905"
+    },
+    {
+      "index": 4,
+      "threshold": 3,
+      "digest": "8407759b",
+      "data": "6ddda1c766d0aca0d098307c4823c27a"
+    },
+    {
+      "index": 5,
+      "threshold": 3,
+      "digest": "8407759b",
+      "data": "e42077bb410b28d3142aee644495ceeb"
+    }
+  ]
+}

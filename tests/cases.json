@@ -1,0 +1,60 @@
+[
+  {
+    "name": "split fixed secret",
+    "request": {
+      "operation": "split",
+      "secret_hex": "cafebabe",
+      "threshold": 2,
+      "shares": 3,
+      "seed": 7
+    },
+    "expected": {
+      "algorithm": "shamir-gf256",
+      "secret_bytes": 4,
+      "threshold": 2,
+      "shares": 3,
+      "digest": "b51d571d"
+    }
+  },
+  {
+    "name": "split error threshold below two",
+    "error": "threshold must be a whole number 2..255",
+    "request": {
+      "operation": "split",
+      "secret_hex": "ab",
+      "threshold": 1,
+      "shares": 3
+    }
+  },
+  {
+    "name": "split error shares below threshold",
+    "error": "shares must be at least the threshold: 4",
+    "request": {
+      "operation": "split",
+      "secret_hex": "ab",
+      "threshold": 4,
+      "shares": 3
+    }
+  },
+  {
+    "name": "combine error below threshold",
+    "error": "need at least 3 shares to combine, got 2",
+    "request": {
+      "operation": "combine",
+      "shares": [
+        {
+          "index": 1,
+          "threshold": 3,
+          "digest": "00000000",
+          "data": "ab"
+        },
+        {
+          "index": 2,
+          "threshold": 3,
+          "digest": "00000000",
+          "data": "cd"
+        }
+      ]
+    }
+  }
+]

@@ -1,0 +1,7 @@
+{
+  "operation": "split",
+  "secret_hex": "00112233445566778899aabbccddeeff",
+  "threshold": 3,
+  "shares": 5,
+  "seed": 20261104
+}

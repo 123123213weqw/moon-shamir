@@ -1,0 +1,60 @@
+"""Malformed-input sweep: every bad request is answered, never crashed."""
+import json, subprocess, sys
+from pathlib import Path
+ROOT = Path(__file__).resolve().parents[1]
+CLI = ROOT / '_build/js/debug/build/cmd/main/main.js'
+
+def share(index=1, threshold=2, digest='00000000', data='ab'):
+    return {'index': index, 'threshold': threshold, 'digest': digest, 'data': data}
+
+CASES = [
+    ('unknown operation', {'operation': 'nope'}),
+    ('missing operation', {}),
+    ('split missing secret', {'operation': 'split', 'threshold': 2, 'shares': 3}),
+    ('split empty secret', {'operation': 'split', 'secret_hex': '', 'threshold': 2, 'shares': 3}),
+    ('split odd hex', {'operation': 'split', 'secret_hex': 'abc', 'threshold': 2, 'shares': 3}),
+    ('split non-hex', {'operation': 'split', 'secret_hex': 'zz', 'threshold': 2, 'shares': 3}),
+    ('split threshold one', {'operation': 'split', 'secret_hex': 'ab', 'threshold': 1, 'shares': 3}),
+    ('split threshold fractional', {'operation': 'split', 'secret_hex': 'ab', 'threshold': 2.5, 'shares': 3}),
+    ('split shares below threshold', {'operation': 'split', 'secret_hex': 'ab', 'threshold': 4, 'shares': 3}),
+    ('split shares over 255', {'operation': 'split', 'secret_hex': 'ab', 'threshold': 2, 'shares': 256}),
+    ('split seed negative', {'operation': 'split', 'secret_hex': 'ab', 'threshold': 2, 'shares': 3, 'seed': -1}),
+    ('split seed over 2^53', {'operation': 'split', 'secret_hex': 'ab', 'threshold': 2, 'shares': 3, 'seed': 9007199254740992}),
+    ('split seed fractional', {'operation': 'split', 'secret_hex': 'ab', 'threshold': 2, 'shares': 3, 'seed': 1.5}),
+    ('split unknown field', {'operation': 'split', 'secret_hex': 'ab', 'threshold': 2, 'shares': 3, 'wat': 1}),
+    ('combine missing shares', {'operation': 'combine'}),
+    ('combine shares not array', {'operation': 'combine', 'shares': 7}),
+    ('combine one share', {'operation': 'combine', 'shares': [share()]}),
+    ('combine index zero', {'operation': 'combine', 'shares': [share(index=0), share(index=2)]}),
+    ('combine index over 255', {'operation': 'combine', 'shares': [share(index=256), share(index=2)]}),
+    ('combine duplicate index', {'operation': 'combine', 'shares': [share(index=1), share(index=1)]}),
+    ('combine short digest', {'operation': 'combine', 'shares': [share(digest='abcd'), share(index=2, digest='abcd')]}),
+    ('combine data empty', {'operation': 'combine', 'shares': [share(data=''), share(index=2)]}),
+    ('combine length mismatch', {'operation': 'combine', 'shares': [share(), share(index=2, data='abcd')]}),
+    ('combine share not object', {'operation': 'combine', 'shares': [7, 8]}),
+    ('combine unknown field', {'operation': 'combine', 'shares': [dict(share(), wat=1), share(index=2)]}),
+]
+
+failures = []
+for label, request in CASES:
+    result = subprocess.run(['node', str(CLI), '-'], input=json.dumps(request),
+        capture_output=True, text=True, encoding='utf-8', timeout=20)
+    if result.returncode != 1:
+        failures.append(label + ': exit ' + str(result.returncode))
+        continue
+    try:
+        parsed = json.loads(result.stdout)
+    except Exception:
+        failures.append(label + ': stdout is not one JSON object')
+        continue
+    if not isinstance(parsed, dict) or not isinstance(parsed.get('error'), str):
+        failures.append(label + ': no error string')
+    if result.stderr.strip():
+        failures.append(label + ': wrote to stderr')
+
+print(f'Robustness: {len(CASES)} malformed requests all answered with '
+    + 'one error object and exit 1')
+if failures:
+    for failure in failures:
+        print('  ' + failure)
+    sys.exit(1)
