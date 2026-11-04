@@ -1,0 +1,17 @@
+{
+  "shares": 5,
+  "threshold": 3,
+  "subsets_checked": 10,
+  "consistent_subsets": 4,
+  "consistent": true,
+  "good": [
+    1,
+    2,
+    3,
+    4
+  ],
+  "suspects": [
+    5
+  ],
+  "secret_hex": "0a0b0c0d"
+}

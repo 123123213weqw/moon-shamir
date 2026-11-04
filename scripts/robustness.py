@@ -33,6 +33,15 @@ CASES = [
     ('combine length mismatch', {'operation': 'combine', 'shares': [share(), share(index=2, data='abcd')]}),
     ('combine share not object', {'operation': 'combine', 'shares': [7, 8]}),
     ('combine unknown field', {'operation': 'combine', 'shares': [dict(share(), wat=1), share(index=2)]}),
+    ('diagnose over twelve shares', {'operation': 'diagnose', 'shares': [
+        share(index=i, threshold=2) for i in range(1, 14)]}),
+    ('diagnose threshold over six', {'operation': 'diagnose', 'shares': [
+        share(index=i, threshold=7) for i in range(1, 4)]}),
+    ('diagnose below threshold', {'operation': 'diagnose', 'shares': [
+        share(index=1, threshold=3), share(index=2, threshold=3)]}),
+    ('verify non-hex secret', {'operation': 'verify', 'shares': [share(), share(index=2)],
+        'secret_hex': 'zz'}),
+    ('verify unknown field', {'operation': 'verify', 'shares': [share(), share(index=2)], 'wat': 1}),
 ]
 
 failures = []

@@ -100,6 +100,31 @@ def combine(shares):
         recovered.append(gf_interpolate_zero(points))
     return bytes(recovered)
 
+def diagnose(shares):
+    """Independent quorum search: same enumeration, separately coded."""
+    import itertools as _it
+    threshold = shares[0]['threshold']
+    digest = int(shares[0]['digest'], 16)
+    width = len(shares[0]['data']) // 2
+    good, consistent = set(), False
+    secret = b''
+    for subset in _it.combinations(shares, threshold):
+        recovered = bytearray()
+        for b in range(width):
+            points = [(s['index'], bytes.fromhex(s['data'])[b]) for s in subset]
+            recovered.append(gf_interpolate_zero(points))
+        if crc32(recovered) == digest:
+            consistent = True
+            if not secret:
+                secret = bytes(recovered)
+            good.update(s['index'] for s in subset)
+    return {
+        'consistent': consistent,
+        'good': sorted(good),
+        'suspects': sorted(s['index'] for s in shares if s['index'] not in good),
+        'secret_hex': secret.hex() if consistent else '',
+    }
+
 def run(request, error=False):
     result = subprocess.run(['node', str(CLI), '-'], input=json.dumps(request),
         capture_output=True, text=True, timeout=60)
@@ -151,8 +176,45 @@ def main():
     assert a[0]['data'] != b[0]['data'], 'seed entropy'
     assert a[0]['digest'] == b[0]['digest'], 'digest follows the secret only'
     checked += 1
+    # Diagnosis: inject one corrupted share into a k+1 (or larger) set and
+    # demand it be named - engine and oracle agree on the quorum verdict.
+    for iteration in range(15):
+        length = rng.randrange(1, 9)
+        secret = bytes(rng.randrange(256) for _ in range(length)).hex()
+        threshold = rng.randrange(2, 5)
+        shares = rng.randrange(threshold + 1, min(threshold + 3, 11) + 1)
+        seed = rng.randrange(0, 1 << 32)
+        made = split(bytes.fromhex(secret), threshold, shares, seed)
+        victim = rng.randrange(shares)
+        data = bytearray(bytes.fromhex(made[victim]['data']))
+        data[rng.randrange(len(data))] ^= 1 << rng.randrange(8)
+        mixed = [dict(s) for s in made]
+        mixed[victim]['data'] = bytes(data).hex()
+        report = run({'operation': 'diagnose', 'shares': mixed})
+        want = diagnose(mixed)
+        assert report['consistent'] == want['consistent'], f'diag-{iteration}'
+        assert report['suspects'] == want['suspects'], (iteration, report['suspects'], want['suspects'])
+        assert report['good'] == want['good'], f'diag-good-{iteration}'
+        assert report['secret_hex'] == want['secret_hex'], f'diag-secret-{iteration}'
+        # The engine's verify agrees the clean prefix recovers, and a
+        # matching secret_hex claim passes while a wrong one fails.
+        clean = run({'operation': 'verify', 'shares': made[:threshold]})
+        assert clean['verified'] is True, f'verify-{iteration}'
+        assert clean['secret_length'] == length, f'verify-len-{iteration}'
+        claim = run({'operation': 'verify', 'shares': made[:threshold], 'secret_hex': secret})
+        assert claim['verified'] is True, f'claim-{iteration}'
+        deny = run({'operation': 'verify', 'shares': made[:threshold], 'secret_hex': 'ff' * length})
+        if 'ff' * length != secret:
+            assert deny['verified'] is False, f'deny-{iteration}'
+        checked += 1
     # Refusals, each answered with one error object and exit 1.
     for bad in [
+        {'operation': 'diagnose', 'shares': [
+            {'index': i, 'threshold': 7, 'digest': '00000000', 'data': 'ab'}
+            for i in range(1, 4)]},
+        {'operation': 'verify', 'shares': [
+            {'index': i, 'threshold': 2, 'digest': '00000000', 'data': 'ab'}
+            for i in range(1, 3)], 'secret_hex': 'zz'},
         {'operation': 'combine', 'shares': [{'index': 1, 'threshold': 2,
           'digest': '00000000', 'data': 'ab'}, {'index': 1, 'threshold': 2,
           'digest': '00000000', 'data': 'cd'}]},

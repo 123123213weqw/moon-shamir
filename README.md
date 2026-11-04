@@ -41,6 +41,21 @@ constant terms back from any k shares.
  "shares": 5, "seed": 20261104}
 ```
 
+Two audit operations sit beside them. `diagnose` takes a share set,
+enumerates every k-sized subset (bounded: at most 12 shares, threshold at
+most 6), and names the shares that disagree with every quorum - a
+corrupted share is identified, not merely suspected. `verify` performs
+the recovery and reports a verdict without returning the secret; with an
+optional `secret_hex` it also proves the set belongs to that exact
+secret. The CLI wraps it all:
+
+```sh
+node scripts/shamir.mjs split 0011223344556677 3 5 20261104
+node scripts/shamir.mjs combine 1:3:8407759b:89ecf4f6... 3:3:...:...
+node scripts/shamir.mjs diagnose <shares...>
+node scripts/shamir.mjs verify <shares...> [secret-hex]
+```
+
 ## Verification
 
 The Python oracle independently rebuilds the scheme from exponent/log

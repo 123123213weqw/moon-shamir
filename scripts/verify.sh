@@ -23,6 +23,12 @@ printf 'oracle: '
 python3 -B scripts/reference.py | tail -1
 printf 'robustness: '
 python3 -B scripts/robustness.py | tail -1
+printf 'cli tool: '
+node scripts/shamir.mjs split 0123456789abcdef 3 5 2026 > /tmp/shamir_shares.txt
+LINES=$(grep -v '^#' /tmp/shamir_shares.txt | grep ':')
+node scripts/shamir.mjs combine $(echo "$LINES" | sed -n '1p;3p;5p') | grep -q 'secret_hex 0123456789abcdef' \
+  && node scripts/shamir.mjs diagnose $(echo "$LINES" | tr '\n' ' ') | grep -q 'suspects \[\]' \
+  && echo 'round trip passed'
 printf 'stats: '
 python3 -B scripts/stats.py | tail -1
 moon fmt --check

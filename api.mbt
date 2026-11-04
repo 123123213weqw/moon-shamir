@@ -11,6 +11,8 @@ pub fn run(request : Value) -> Value raise InputError {
   match get(request, "operation") {
     String("split") => split_with(request)
     String("combine") => combine_with(request)
+    String("diagnose") => diagnose_with(request)
+    String("verify") => verify_with(request)
     String(other) => raise InputError("unsupported operation: " + other)
     _ => raise InputError("missing field: operation")
   }
@@ -136,4 +138,66 @@ fn combine_with(request : Value) -> Value raise InputError {
     ("recovered_digest", String(digest_hex(crc32(recovered)))),
     ("verified", Bool(verified)),
   ])
+}
+
+///|
+/// Diagnose a share set without asserting it is clean: which shares agree
+/// with a quorum, which disagree with every quorum, and whether a
+/// consistent secret exists at all.
+fn diagnose_with(request : Value) -> Value raise InputError {
+  fields_only(request, ["operation", "shares"])
+  let raw = arr(required(request, "shares"))
+  if raw.length() < 2 || raw.length() > 12 {
+    raise InputError("shares must list 2..12 shares")
+  }
+  let parsed : Array[Share] = []
+  for entry in raw {
+    parsed.push(share_from_value(entry))
+  }
+  shamir_diagnose(parsed)
+}
+
+///|
+/// Audit a share set without returning the secret: the same interpolation
+/// combine performs, reported as a verdict only. When secret_hex is also
+/// supplied, the verdict additionally requires the recovered bytes to
+/// equal it - a holder can prove a share set belongs to a known secret
+/// without the response carrying anything new.
+fn verify_with(request : Value) -> Value raise InputError {
+  fields_only(request, ["operation", "shares", "secret_hex"])
+  let raw = arr(required(request, "shares"))
+  if raw.length() < 2 || raw.length() > 255 {
+    raise InputError("shares must list 2..255 shares")
+  }
+  let expected = match get(request, "secret_hex") {
+    Null => ""
+    other => {
+      // A claim about the secret is itself hex and length-checked here,
+      // so a malformed claim is a refusal, not a verdict.
+      let claimed = parse_hex(str(other))
+      to_hex(claimed)
+    }
+  }
+  let parsed : Array[Share] = []
+  for entry in raw {
+    parsed.push(share_from_value(entry))
+  }
+  let (recovered, verified) = shamir_combine(parsed)
+  let matches_secret = if expected == "" {
+    verified
+  } else {
+    verified && to_hex(recovered) == expected
+  }
+  record([
+    ("algorithm", String("shamir-gf256")),
+    ("shares", Number(parsed.length().to_double())),
+    ("threshold", Number(threshold_of(parsed).to_double())),
+    ("secret_length", Number(recovered.length().to_double())),
+    ("verified", Bool(matches_secret)),
+  ])
+}
+
+///|
+fn threshold_of(shares : Array[Share]) -> Int32 {
+  shares[0].threshold
 }

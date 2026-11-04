@@ -56,5 +56,65 @@
         }
       ]
     }
+  },
+  {
+    "name": "diagnose names corrupted share",
+    "request": {
+      "operation": "diagnose",
+      "shares": [
+        {
+          "index": 1,
+          "threshold": 2,
+          "digest": "59bc5767",
+          "data": "9b"
+        },
+        {
+          "index": 2,
+          "threshold": 2,
+          "digest": "59bc5767",
+          "data": "c3"
+        },
+        {
+          "index": 3,
+          "threshold": 2,
+          "digest": "59bc5767",
+          "data": "ff"
+        }
+      ]
+    },
+    "expected": {
+      "consistent": true,
+      "suspects": [
+        3
+      ],
+      "good": [
+        1,
+        2
+      ]
+    }
+  },
+  {
+    "name": "verify reports consistency without the secret",
+    "request": {
+      "operation": "verify",
+      "shares": [
+        {
+          "index": 1,
+          "threshold": 2,
+          "digest": "59bc5767",
+          "data": "9b"
+        },
+        {
+          "index": 2,
+          "threshold": 2,
+          "digest": "59bc5767",
+          "data": "c3"
+        }
+      ]
+    },
+    "expected": {
+      "verified": true,
+      "secret_length": 1
+    }
   }
 ]

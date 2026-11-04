@@ -1,0 +1,35 @@
+{
+  "operation": "diagnose",
+  "shares": [
+    {
+      "index": 1,
+      "threshold": 3,
+      "digest": "90a8e328",
+      "data": "38b3bc3e"
+    },
+    {
+      "index": 2,
+      "threshold": 3,
+      "digest": "90a8e328",
+      "data": "88157112"
+    },
+    {
+      "index": 3,
+      "threshold": 3,
+      "digest": "90a8e328",
+      "data": "baadc121"
+    },
+    {
+      "index": 4,
+      "threshold": 3,
+      "digest": "90a8e328",
+      "data": "a0f8eecc"
+    },
+    {
+      "index": 5,
+      "threshold": 3,
+      "digest": "90a8e328",
+      "data": "ff405eff"
+    }
+  ]
+}

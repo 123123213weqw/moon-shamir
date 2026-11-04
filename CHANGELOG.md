@@ -1,5 +1,28 @@
 # Changelog
 
+## 0.2.0 — 2026-11-04
+
+Two audit operations and a command-line tool. `diagnose` enumerates every
+k-sized subset of a share set (bounded to 12 shares of a threshold at
+most 6, so at most C(12,6) = 924 interpolations per byte), keeps the
+subsets whose recovered bytes carry the label the shares agree on, and
+names the shares that appear in no consistent subset - a corrupted share
+is identified, not merely suspected, because it disagrees with every
+quorum. `verify` performs combine's interpolation and reports a verdict
+without returning the secret; with an optional secret_hex it additionally
+requires the recovered bytes to equal it, so a holder can prove a share
+set belongs to a known secret while the response carries nothing new.
+The oracle grew an independently coded quorum search: 15 rounds inject a
+flipped-bit share into a random split and demand the engine and the
+oracle name the same suspect, agree on the good set and the recovered
+secret. scripts/shamir.mjs wraps the engine as split / combine /
+diagnose / verify commands with one-line print-friendly shares
+(index:threshold:digest:data), wired into the verify ladder as a
+round-trip check. Five new malformed-input cases (30 total), two new
+fixtures, one new pinned example, two new white-box tests (12 total).
+
+## 0.1.0 — 2026-11-04
+
 ## 0.1.0 — 2026-11-04
 
 First release. Shamir k-of-n threshold secret sharing over GF(2^8)

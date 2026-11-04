@@ -194,3 +194,119 @@ test "fewer than k shares are refused outright" {
   ]
   assert_not_eq(gf_interpolate_zero(points), secret[0])
 }
+
+///|
+/// Diagnose a share set: enumerate every k-sized subset, interpolate each,
+/// and keep the subsets whose recovered bytes carry the label the shares
+/// agree on. A share that appears in no consistent subset disagrees with
+/// every quorum and is named a suspect; a set with at least one
+/// consistent subset is consistent, and its secret is reported. The
+/// enumeration is exhaustive, so it is bounded: at most 12 shares of a
+/// threshold at most 6 (C(12,6) = 924 interpolations per byte position).
+fn shamir_diagnose(shares : Array[Share]) -> Value raise InputError {
+  let threshold = shares[0].threshold
+  let digest = shares[0].digest
+  let width = shares[0].data.length()
+  for share in shares {
+    if share.threshold != threshold {
+      raise InputError("shares come from different thresholds")
+    }
+    if share.digest != digest {
+      raise InputError("shares come from different splits")
+    }
+    if share.index < 1 || share.index > 255 {
+      raise InputError("share index must be in 1..255")
+    }
+    if share.data.length() != width {
+      raise InputError("shares have different lengths")
+    }
+  }
+  if shares.length() > 12 {
+    raise InputError("diagnose accepts at most 12 shares")
+  }
+  if threshold > 6 {
+    raise InputError("diagnose accepts a threshold of at most 6")
+  }
+  if shares.length() < threshold {
+    raise InputError(
+      "need at least " +
+      threshold.to_string() +
+      " shares to diagnose, got " +
+      shares.length().to_string(),
+    )
+  }
+  for i in 0..<shares.length() {
+    for j = i + 1; j < shares.length(); j = j + 1 {
+      if shares[i].index == shares[j].index {
+        raise InputError(
+          "duplicate share index: " + shares[i].index.to_string(),
+        )
+      }
+    }
+  }
+  // Enumerate k-subsets by bitmask over at most 12 shares.
+  let total = 1 << shares.length()
+  // C(m, k) by the multiplicative formula, in Double to stay exact for
+  // every m the bounds allow.
+  let mut subsets_total = 1.0
+  for i in 0..<threshold {
+    subsets_total = subsets_total *
+      (shares.length() - i).to_double() /
+      (i + 1).to_double()
+  }
+  let mut consistent_subsets = 0
+  let recovered : Array[Int32] = []
+  let good : Map[Int32, Bool] = Map([])
+  for mask in 1..<total {
+    let picked : Array[Share] = []
+    for i in 0..<shares.length() {
+      if ((mask >> i) & 1) == 1 {
+        picked.push(shares[i])
+      }
+    }
+    if picked.length() != threshold {
+      continue
+    }
+    let candidate : Array[Int32] = []
+    for b in 0..<width {
+      let points : Array[(Int32, Int32)] = []
+      for share in picked {
+        points.push((share.index, share.data[b]))
+      }
+      candidate.push(gf_interpolate_zero(points))
+    }
+    if crc32(candidate) == digest {
+      consistent_subsets += 1
+      if recovered.is_empty() {
+        for byte in candidate {
+          recovered.push(byte)
+        }
+      }
+      for share in picked {
+        good[share.index] = true
+      }
+    }
+  }
+  let suspects : Array[Value] = []
+  let good_list : Array[Value] = []
+  for share in shares {
+    if good.contains(share.index) {
+      good_list.push(Number(share.index.to_double()))
+    } else {
+      suspects.push(Number(share.index.to_double()))
+    }
+  }
+  record([
+    ("shares", Number(shares.length().to_double())),
+    ("threshold", Number(threshold.to_double())),
+    ("subsets_checked", Number(subsets_total)),
+    ("consistent_subsets", Number(consistent_subsets.to_double())),
+    ("consistent", Bool(consistent_subsets > 0)),
+    ("good", Array(good_list)),
+    ("suspects", Array(suspects)),
+    (
+      "secret_hex",
+      String(if consistent_subsets > 0 { to_hex(recovered) } else { "" }),
+    ),
+  ])
+}

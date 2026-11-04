@@ -110,3 +110,68 @@ test "corrupted share bytes fail the integrity label" {
   let combine = run(from_json(@json.parse(tampered)))
   assert_eq(get(combine, "verified"), Bool(false))
 }
+
+///|
+test "diagnose names the share that disagrees with every quorum" {
+  let split = run(
+    from_json(
+      @json.parse(
+        "{\"operation\":\"split\",\"secret_hex\":\"0a0b0c0d\",\"threshold\":3,\"shares\":5,\"seed\":31}",
+      ),
+    ),
+  )
+  let shares = match get(split, "share_list") {
+    Array(items) => items
+    _ => abort("share_list missing")
+  }
+  // Corrupt share x=4 by flipping its first data byte, then hand the set
+  // to diagnose: the quorum that excludes it recovers the secret, and x=4
+  // is named as the suspect.
+  let data_text = str(get(shares[4], "data"))
+  let corrupted_share = record([
+    ("index", Number(5)),
+    ("threshold", get(shares[4], "threshold")),
+    ("digest", get(shares[4], "digest")),
+    ("data", String("ff" + data_text[2:].to_owned())),
+  ])
+  let report = run(
+    from_json(
+      @json.parse(
+        "{\"operation\":\"diagnose\",\"shares\":" +
+        Array([shares[0], shares[1], shares[2], shares[3], corrupted_share])
+        .to_json()
+        .stringify() +
+        "}",
+      ),
+    ),
+  )
+  assert_eq(get(report, "consistent"), Bool(true))
+  assert_eq(get(report, "suspects"), from_json(@json.parse("[5]")))
+  assert_eq(get(report, "good"), from_json(@json.parse("[1,2,3,4]")))
+  assert_eq(get(report, "secret_hex"), String("0a0b0c0d"))
+}
+
+///|
+test "verify audits without returning the secret" {
+  let split = run(
+    from_json(
+      @json.parse(
+        "{\"operation\":\"split\",\"secret_hex\":\"beef\",\"threshold\":2,\"shares\":3,\"seed\":5}",
+      ),
+    ),
+  )
+  let shares = match get(split, "share_list") {
+    Array(items) => items
+    _ => abort("share_list missing")
+  }
+  let request = "{\"operation\":\"verify\",\"shares\":[" +
+    shares[0].to_json().stringify() +
+    "," +
+    shares[2].to_json().stringify() +
+    "]}"
+  let report = run(from_json(@json.parse(request)))
+  assert_eq(get(report, "verified"), Bool(true))
+  assert_eq(get(report, "secret_length"), Number(2))
+  // A verify response never carries the secret bytes.
+  assert_eq(get(report, "secret_hex"), Null)
+}
