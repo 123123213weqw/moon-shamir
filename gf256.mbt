@@ -93,10 +93,14 @@ fn gf_eval(coefficients : Array[Int32], x : Int32) -> Int32 {
 }
 
 ///|
-/// The value at zero of the unique polynomial through the points, by
-/// Lagrange: sum of y_i times the product of x_j / (x_i XOR x_j) over
-/// every j other than i. Points must be distinct and nonzero.
-fn gf_interpolate_zero(points : Array[(Int32, Int32)]) -> Int32 {
+/// The value at `at` of the unique polynomial through the points, by
+/// Lagrange: sum of y_i times the product of (at XOR x_j) / (x_i XOR x_j)
+/// over every j other than i. Points must be distinct; at zero the
+/// numerators are x_j, which is the constant-term recovery combine uses.
+fn gf_interpolate_at(
+  points : Array[(Int32, Int32)],
+  at : Int32,
+) -> Int32 {
   let mut acc = 0
   for i in 0..<points.length() {
     let (xi, yi) = points[i]
@@ -104,13 +108,17 @@ fn gf_interpolate_zero(points : Array[(Int32, Int32)]) -> Int32 {
     for j in 0..<points.length() {
       if j != i {
         let (xj, _) = points[j]
-        // (0 - x_j) is x_j and (x_i - x_j) is x_i XOR x_j in GF(2^8).
-        weight = gf_mul(weight, gf_mul(xj, gf_inv(xi ^ xj)))
+        weight = gf_mul(weight, gf_mul(at ^ xj, gf_inv(xi ^ xj)))
       }
     }
     acc = acc ^ gf_mul(yi, weight)
   }
   acc
+}
+
+///|
+fn gf_interpolate_zero(points : Array[(Int32, Int32)]) -> Int32 {
+  gf_interpolate_at(points, 0)
 }
 
 ///|

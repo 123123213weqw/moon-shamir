@@ -3,9 +3,7 @@
 /// strict - padding and alphabet are checked by the core codec, and the
 /// byte count still has to match what the share set agrees on.
 fn share_bytes_from_base64(text : String) -> Array[Int32] raise InputError {
-  let decoded = try {
-    @base64.decode(text[:])
-  } catch {
+  let decoded = @base64.decode(text[:]) catch {
     _ => raise InputError("share data is not valid base64")
   }
   let out : Array[Int32] = []

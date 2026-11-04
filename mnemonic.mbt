@@ -5,7 +5,11 @@
 /// word 0 is the share index, word 1 the threshold, then one word per
 /// payload byte, then two words carrying the top 16 bits of the CRC-32
 /// over (index, threshold, payload).
-fn mnemonic_encode(index : Int32, threshold : Int32, data : Array[Int32]) -> Array[String] {
+fn mnemonic_encode(
+  index : Int32,
+  threshold : Int32,
+  data : Array[Int32],
+) -> Array[String] {
   let words : Array[String] = []
   words.push(mnemonic_words[index])
   words.push(mnemonic_words[threshold])
@@ -52,7 +56,9 @@ fn mnemonic_decode(words : Array[String]) -> MnemonicShare raise InputError {
     }
   }
   if words.length() < 5 {
-    raise InputError("mnemonic needs at least 5 words, got " + words.length().to_string())
+    raise InputError(
+      "mnemonic needs at least 5 words, got " + words.length().to_string(),
+    )
   }
   let index = word_at(0)
   if index < 1 {

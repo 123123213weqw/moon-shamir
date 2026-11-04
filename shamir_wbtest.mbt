@@ -227,3 +227,104 @@ test "secret_hex and secret_text are mutually exclusive" {
     String("secret_hex and secret_text are mutually exclusive"),
   )
 }
+
+///|
+test "reshare mints a working split without exposing the secret" {
+  let split = run(
+    from_json(
+      @json.parse(
+        "{\"operation\":\"split\",\"secret_hex\":\"0badc0de\",\"threshold\":2,\"shares\":3,\"seed\":11}",
+      ),
+    ),
+  )
+  let shares = match get(split, "share_list") {
+    Array(items) => items
+    _ => abort("share_list missing")
+  }
+  let reshare = run(
+    from_json(
+      @json.parse(
+        "{\"operation\":\"reshare\",\"shares\":[" +
+        shares[0].to_json().stringify() +
+        "," +
+        shares[2].to_json().stringify() +
+        "],\"threshold_new\":3,\"shares_new\":5,\"seed\":77}",
+      ),
+    ),
+  )
+  assert_eq(get(reshare, "threshold_new"), Number(3))
+  assert_eq(get(reshare, "digest"), get(split, "digest"))
+  let minted = match get(reshare, "share_list") {
+    Array(items) => items
+    _ => abort("share_list missing")
+  }
+  assert_eq(minted.length(), 5)
+  // The new set recovers the same secret on its own quorums.
+  let combine = run(
+    from_json(
+      @json.parse(
+        "{\"operation\":\"combine\",\"shares\":[" +
+        minted[0].to_json().stringify() +
+        "," +
+        minted[3].to_json().stringify() +
+        "," +
+        minted[4].to_json().stringify() +
+        "]}",
+      ),
+    ),
+  )
+  assert_eq(get(combine, "secret_hex"), String("0badc0de"))
+  assert_eq(get(combine, "verified"), Bool(true))
+  // Mixing old and new shares belongs to different polynomials. With the
+  // threshold raised the mix is refused outright (thresholds disagree);
+  // with the threshold kept the mix interpolates garbage and the label
+  // catches it. Either way old shares die after a reshare.
+  let mixed_refused = try {
+    let _ = run(
+      from_json(
+        @json.parse(
+          "{\"operation\":\"combine\",\"shares\":[" +
+          shares[1].to_json().stringify() +
+          "," +
+          minted[1].to_json().stringify() +
+          "]}",
+        ),
+      ),
+    )
+    false
+  } catch {
+    InputError(message) => message == "shares come from different thresholds"
+    other => {
+      let _ = other
+      false
+    }
+  }
+  assert_eq(mixed_refused, true)
+  let kept = run(
+    from_json(
+      @json.parse(
+        "{\"operation\":\"reshare\",\"shares\":[" +
+        shares[0].to_json().stringify() +
+        "," +
+        shares[2].to_json().stringify() +
+        "],\"threshold_new\":2,\"shares_new\":3,\"seed\":78}",
+      ),
+    ),
+  )
+  let kept_shares = match get(kept, "share_list") {
+    Array(items) => items
+    _ => abort("share_list missing")
+  }
+  let mixed_answer = run(
+    from_json(
+      @json.parse(
+        "{\"operation\":\"combine\",\"shares\":[" +
+        shares[1].to_json().stringify() +
+        "," +
+        kept_shares[1].to_json().stringify() +
+        "]}",
+      ),
+    ),
+  )
+  assert_eq(get(mixed_answer, "verified"), Bool(false))
+}

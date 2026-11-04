@@ -58,6 +58,13 @@ CASES = [
         share(index=1, threshold=3), share(index=2, threshold=3)]}),
     ('verify non-hex secret', {'operation': 'verify', 'shares': [share(), share(index=2)],
         'secret_hex': 'zz'}),
+    ('reshare threshold falls', {'operation': 'reshare', 'shares': [
+        share(), share(index=2)], 'threshold_new': 1, 'shares_new': 3}),
+    ('reshare below old threshold', {'operation': 'reshare', 'shares': [
+        share(index=1, threshold=3), share(index=2, threshold=3)],
+        'threshold_new': 3, 'shares_new': 4}),
+    ('reshare unknown field', {'operation': 'reshare', 'shares': [
+        share(), share(index=2)], 'threshold_new': 2, 'shares_new': 3, 'wat': 1}),
     ('verify unknown field', {'operation': 'verify', 'shares': [share(), share(index=2)], 'wat': 1}),
 ]
 

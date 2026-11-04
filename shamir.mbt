@@ -310,3 +310,119 @@ fn shamir_diagnose(shares : Array[Share]) -> Value raise InputError {
     ),
   ])
 }
+
+///|
+/// Reshare: mint a fresh (threshold_new, shares_new) split from k old
+/// shares, without the secret ever existing in memory. A fresh random
+/// polynomial h of degree threshold_new - 1 with h(0) = 0 is drawn from
+/// the new seed; the new polynomial g = f + h keeps the secret as its
+/// constant term, and each new share is g evaluated at its x - which is
+/// the old polynomial interpolated at that x, XOR the new polynomial
+/// evaluated there. The threshold can grow (degree rises) but never
+/// shrink below the old one, or g would silently stay at the old degree;
+/// the refusal names that bound. Old and new shares belong to different
+/// polynomials: mixing them fails the integrity label, which is the
+/// proactive-security point - after a reshare, destroy the old shares.
+fn shamir_reshare(
+  shares : Array[Share],
+  threshold_new : Int32,
+  shares_new : Int32,
+  seed : UInt64,
+) -> Array[Share] raise InputError {
+  let threshold = shares[0].threshold
+  let digest = shares[0].digest
+  let width = shares[0].data.length()
+  for share in shares {
+    if share.threshold != threshold {
+      raise InputError("shares come from different thresholds")
+    }
+    if share.digest != digest {
+      raise InputError("shares come from different splits")
+    }
+    if share.index < 1 || share.index > 255 {
+      raise InputError("share index must be in 1..255")
+    }
+    if share.data.length() != width {
+      raise InputError("shares have different lengths")
+    }
+  }
+  if shares.length() < threshold {
+    raise InputError(
+      "need at least " +
+      threshold.to_string() +
+      " shares to reshare, got " +
+      shares.length().to_string(),
+    )
+  }
+  if threshold_new < threshold {
+    raise InputError(
+      "a reshare threshold cannot fall below the old threshold: " +
+      threshold.to_string(),
+    )
+  }
+  if threshold_new > 255 || shares_new < threshold_new || shares_new > 255 {
+    raise InputError("threshold and shares must fit 2..255 with shares >= threshold")
+  }
+  for i in 0..<shares.length() {
+    for j = i + 1; j < shares.length(); j = j + 1 {
+      if shares[i].index == shares[j].index {
+        raise InputError(
+          "duplicate share index: " + shares[i].index.to_string(),
+        )
+      }
+    }
+  }
+  // Deterministic input choice: the lowest threshold x coordinates.
+  let sorted : Array[Share] = []
+  for share in shares {
+    sorted.push(share)
+  }
+  sorted.sort_by(fn(a, b) { a.index - b.index })
+  let basis : Array[Share] = []
+  for i in 0..<threshold {
+    basis.push(sorted[i])
+  }
+  // One fresh h per byte position, constant term zero.
+  let rng = splitmix64(seed)
+  let hs : Array[Array[Int32]] = []
+  for _ in 0..<width {
+    let poly : Array[Int32] = [0]
+    for _ in 1..<threshold_new {
+      poly.push(rng.next_byte())
+    }
+    hs.push(poly)
+  }
+  let out : Array[Share] = []
+  // New x coordinates are the smallest values that no old share occupies,
+  // so a reshare can mint more shares than it started from and old and
+  // new sets never alias an x. The share carries its x either way.
+  let mut x = 0
+  let mut allocated = 0
+  while allocated < shares_new {
+    x = x + 1
+    if x > 255 {
+      raise InputError("no free x coordinate below 256 for a new share")
+    }
+    let mut taken = false
+    for share in shares {
+      if share.index == x {
+        taken = true
+      }
+    }
+    if taken {
+      continue
+    }
+    allocated = allocated + 1
+    let data : Array[Int32] = []
+    for b in 0..<width {
+      let points : Array[(Int32, Int32)] = []
+      for share in basis {
+        points.push((share.index, share.data[b]))
+      }
+      let f_at = gf_interpolate_at(points, x)
+      data.push(f_at ^ gf_eval(hs[b], x))
+    }
+    out.push({ index: x, threshold: threshold_new, digest, data })
+  }
+  out
+}
