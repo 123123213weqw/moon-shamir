@@ -35,6 +35,7 @@ fn share_to_value_as(share : Share, encoding : String) -> Value {
     ("index", Number(share.index.to_double())),
     ("threshold", Number(share.threshold.to_double())),
     ("digest", String(digest_hex(share.digest))),
+    ("commit", String(share.commit)),
     ("data", payload),
     ("encoding", String(encoding)),
   ])
@@ -42,7 +43,17 @@ fn share_to_value_as(share : Share, encoding : String) -> Value {
 
 ///|
 fn share_from_value(value : Value) -> Share raise InputError {
-  fields_only(value, ["index", "threshold", "digest", "data", "encoding"])
+  fields_only(value, [
+    "index", "threshold", "digest", "commit", "data", "encoding",
+  ])
+  let commit = match get(value, "commit") {
+    Null => "crc32"
+    String("crc32") => "crc32"
+    String("sha256") => "sha256"
+    String(other) =>
+      raise InputError("share commit must be crc32 or sha256, found: " + other)
+    _ => raise InputError("share commit must be crc32 or sha256")
+  }
   let index = num(required(value, "index"))
   if index.floor() != index || index < 1.0 || index > 255.0 {
     raise InputError("share index must be a whole number 1..255")
@@ -89,6 +100,7 @@ fn share_from_value(value : Value) -> Share raise InputError {
     index: index.to_int(),
     threshold: threshold.to_int(),
     digest: digest_of_bytes(digest_bytes),
+    commit,
     data,
   }
 }
@@ -101,6 +113,7 @@ fn share_from_value(value : Value) -> Share raise InputError {
 fn split_with(request : Value) -> Value raise InputError {
   fields_only(request, [
     "operation", "secret_hex", "secret_text", "threshold", "shares", "seed", "share_encoding",
+    "commit",
   ])
   let secret = match (get(request, "secret_hex"), get(request, "secret_text")) {
     (Null, Null) => raise InputError("missing field: secret_hex")
@@ -140,6 +153,14 @@ fn split_with(request : Value) -> Value raise InputError {
   if seed.floor() != seed || seed < 0.0 || seed > 9007199254740991.0 {
     raise InputError("seed must be a whole number 0..9007199254740991")
   }
+  let commit = match get(request, "commit") {
+    Null => "crc32"
+    String("crc32") => "crc32"
+    String("sha256") => "sha256"
+    String(other) =>
+      raise InputError("commit must be crc32 or sha256, found: " + other)
+    _ => raise InputError("commit must be crc32 or sha256")
+  }
   let share_encoding = match get(request, "share_encoding") {
     Null => "hex"
     String("hex") => "hex"
@@ -156,6 +177,7 @@ fn split_with(request : Value) -> Value raise InputError {
     threshold.to_int(),
     shares.to_int(),
     seed.to_uint64(),
+    commit,
   )
   let encoded : Array[Value] = []
   for share in generated {
@@ -168,7 +190,8 @@ fn split_with(request : Value) -> Value raise InputError {
     ("shares", Number(shares)),
     ("seed", Number(seed)),
     ("share_encoding", String(share_encoding)),
-    ("digest", String(digest_hex(crc32(secret)))),
+    ("commit", String(commit)),
+    ("digest", String(digest_hex(commit_digest(secret, commit)))),
     ("share_list", Array(encoded)),
   ])
 }
@@ -255,6 +278,7 @@ fn verify_with(request : Value) -> Value raise InputError {
     ("algorithm", String("shamir-gf256")),
     ("shares", Number(parsed.length().to_double())),
     ("threshold", Number(threshold_of(parsed).to_double())),
+    ("commit", String(parsed[0].commit)),
     ("secret_length", Number(recovered.length().to_double())),
     ("verified", Bool(matches_secret)),
   ])
@@ -273,8 +297,7 @@ fn threshold_of(shares : Array[Share]) -> Int32 {
 /// one; a new x may not collide with an old share index.
 fn reshare_with(request : Value) -> Value raise InputError {
   fields_only(request, [
-    "operation", "shares", "threshold_new", "shares_new", "seed",
-    "share_encoding",
+    "operation", "shares", "threshold_new", "shares_new", "seed", "share_encoding",
   ])
   let raw = arr(required(request, "shares"))
   if raw.length() < 2 || raw.length() > 255 {
@@ -287,9 +310,7 @@ fn reshare_with(request : Value) -> Value raise InputError {
     raise InputError("threshold_new must be a whole number 2..255")
   }
   let shares_new = num(required(request, "shares_new"))
-  if shares_new.floor() != shares_new ||
-    shares_new < 2.0 ||
-    shares_new > 255.0 {
+  if shares_new.floor() != shares_new || shares_new < 2.0 || shares_new > 255.0 {
     raise InputError("shares_new must be a whole number 2..255")
   }
   let seed = match get(request, "seed") {
@@ -330,6 +351,7 @@ fn reshare_with(request : Value) -> Value raise InputError {
     ("shares_new", Number(shares_new)),
     ("seed", Number(seed)),
     ("digest", String(digest_hex(minted[0].digest))),
+    ("commit", String(minted[0].commit)),
     ("share_encoding", String(share_encoding)),
     ("share_list", Array(encoded)),
   ])

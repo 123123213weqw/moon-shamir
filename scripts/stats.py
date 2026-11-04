@@ -2,7 +2,7 @@
 import json, sys
 from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
-PRODUCTION = ['api.mbt', 'gf256.mbt', 'shamir.mbt', 'splitmix.mbt', 'text.mbt', 'value.mbt']
+PRODUCTION = ['api.mbt', 'gf256.mbt', 'sha256.mbt', 'shamir.mbt', 'splitmix.mbt', 'text.mbt', 'value.mbt']
 physical = noncomment = 0
 for name in PRODUCTION:
     for line in (ROOT / name).read_text().splitlines():

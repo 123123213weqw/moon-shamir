@@ -14,7 +14,8 @@
       "threshold": 2,
       "shares": 3,
       "digest": "b51d571d",
-      "share_encoding": "hex"
+      "share_encoding": "hex",
+      "commit": "crc32"
     }
   },
   {

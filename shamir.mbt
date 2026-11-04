@@ -46,7 +46,21 @@ priv struct Share {
   index : Int32
   threshold : Int32
   digest : UInt32
+  commit : String
   data : Array[Int32]
+}
+
+///|
+/// The label of `bytes` under the named commitment: CRC-32 by default,
+/// or the first 32 bits of SHA-256 when the split asked for it. Both
+/// travel as 8 hex digits; the commitment kind rides in every share.
+fn commit_digest(bytes : Array[Int32], commit : String) -> UInt32 {
+  if commit == "sha256" {
+    let raw = sha256_raw(bytes)
+    digest_of_bytes([raw[0], raw[1], raw[2], raw[3]])
+  } else {
+    crc32(bytes)
+  }
 }
 
 ///|
@@ -61,9 +75,10 @@ fn shamir_split(
   threshold : Int32,
   shares : Int32,
   seed : UInt64,
+  commit : String,
 ) -> Array[Share] {
   let rng = splitmix64(seed)
-  let digest = crc32(secret)
+  let digest = commit_digest(secret, commit)
   // coefficients[b] is byte b's polynomial, constant term first.
   let coefficients : Array[Array[Int32]] = []
   for byte in secret {
@@ -79,7 +94,7 @@ fn shamir_split(
     for poly in coefficients {
       data.push(gf_eval(poly, x))
     }
-    out.push({ index: x, threshold, digest, data, })
+    out.push({ index: x, threshold, digest, commit, data, })
   }
   out
 }
@@ -97,6 +112,7 @@ fn shamir_combine(
 ) -> (Array[Int32], Bool) raise InputError {
   let threshold = shares[0].threshold
   let digest = shares[0].digest
+  let commit = shares[0].commit
   let width = shares[0].data.length()
   for share in shares {
     if share.threshold != threshold {
@@ -104,6 +120,9 @@ fn shamir_combine(
     }
     if share.digest != digest {
       raise InputError("shares come from different splits")
+    }
+    if share.commit != commit {
+      raise InputError("shares come from different commitments")
     }
     if share.index < 1 || share.index > 255 {
       raise InputError("share index must be in 1..255")
@@ -147,7 +166,7 @@ fn shamir_combine(
     }
     recovered.push(gf_interpolate_zero(points))
   }
-  (recovered, crc32(recovered) == digest)
+  (recovered, commit_digest(recovered, commit) == digest)
 }
 
 ///|
@@ -155,7 +174,7 @@ test "any k of n shares recover the same secret" {
   // The algebraic law of the scheme, checked exhaustively: every k-sized
   // subset of the shares interpolates back to the same secret.
   let secret : Array[Int32] = [0, 1, 127, 128, 200, 255]
-  let shares = shamir_split(secret, 3, 5, 20261104)
+  let shares = shamir_split(secret, 3, 5, 20261104, "crc32")
   assert_eq(shares.length(), 5)
   // C(5, 3) = 10 subsets, enumerated by hand over the five indices.
   for i in 0..<5 {
@@ -176,7 +195,7 @@ test "any k of n shares recover the same secret" {
 ///|
 test "fewer than k shares are refused outright" {
   let secret : Array[Int32] = [9, 9, 9, 9]
-  let shares = shamir_split(secret, 3, 5, 7)
+  let shares = shamir_split(secret, 3, 5, 7, "crc32")
   // The combine door is closed below the threshold: no wrong-secret
   // output exists to misuse, the refusal names what is missing.
   let refused = try {
@@ -213,6 +232,9 @@ fn shamir_diagnose(shares : Array[Share]) -> Value raise InputError {
     }
     if share.digest != digest {
       raise InputError("shares come from different splits")
+    }
+    if share.commit != shares[0].commit {
+      raise InputError("shares come from different commitments")
     }
     if share.index < 1 || share.index > 255 {
       raise InputError("share index must be in 1..255")
@@ -275,7 +297,7 @@ fn shamir_diagnose(shares : Array[Share]) -> Value raise InputError {
       }
       candidate.push(gf_interpolate_zero(points))
     }
-    if crc32(candidate) == digest {
+    if commit_digest(candidate, shares[0].commit) == digest {
       consistent_subsets += 1
       if recovered.is_empty() {
         for byte in candidate {
@@ -339,6 +361,9 @@ fn shamir_reshare(
     if share.digest != digest {
       raise InputError("shares come from different splits")
     }
+    if share.commit != shares[0].commit {
+      raise InputError("shares come from different commitments")
+    }
     if share.index < 1 || share.index > 255 {
       raise InputError("share index must be in 1..255")
     }
@@ -361,7 +386,9 @@ fn shamir_reshare(
     )
   }
   if threshold_new > 255 || shares_new < threshold_new || shares_new > 255 {
-    raise InputError("threshold and shares must fit 2..255 with shares >= threshold")
+    raise InputError(
+      "threshold and shares must fit 2..255 with shares >= threshold",
+    )
   }
   for i in 0..<shares.length() {
     for j = i + 1; j < shares.length(); j = j + 1 {
@@ -422,7 +449,13 @@ fn shamir_reshare(
       let f_at = gf_interpolate_at(points, x)
       data.push(f_at ^ gf_eval(hs[b], x))
     }
-    out.push({ index: x, threshold: threshold_new, digest, data })
+    out.push({
+      index: x,
+      threshold: threshold_new,
+      digest,
+      commit: shares[0].commit,
+      data,
+    })
   }
   out
 }

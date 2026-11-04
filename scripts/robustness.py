@@ -58,6 +58,12 @@ CASES = [
         share(index=1, threshold=3), share(index=2, threshold=3)]}),
     ('verify non-hex secret', {'operation': 'verify', 'shares': [share(), share(index=2)],
         'secret_hex': 'zz'}),
+    ('commit kind unknown', {'operation': 'split', 'secret_hex': 'ab',
+        'threshold': 2, 'shares': 3, 'commit': 'md5'}),
+    ('share commit unknown', {'operation': 'combine', 'shares': [
+        dict(share(), commit='sha1'), share(index=2)]}),
+    ('commit kinds mixed', {'operation': 'combine', 'shares': [
+        dict(share()), dict(share(index=2), commit='sha256')]}),
     ('reshare threshold falls', {'operation': 'reshare', 'shares': [
         share(), share(index=2)], 'threshold_new': 1, 'shares_new': 3}),
     ('reshare below old threshold', {'operation': 'reshare', 'shares': [
