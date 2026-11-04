@@ -87,6 +87,7 @@ def split(secret, threshold, shares, seed):
         out.append({
             'index': x, 'threshold': threshold,
             'digest': f'{digest:08x}', 'data': bytes(gf_eval(p, x) for p in polys).hex(),
+            'encoding': 'hex',
         })
     return out
 
@@ -185,6 +186,29 @@ def main():
         answer = run({'operation': 'combine', 'shares': picked})
         assert answer['verified'] is True, f'text-verified-{iteration}'
         assert answer['secret_text'] == text, f'text-roundtrip-{iteration}'
+        checked += 1
+    # Base64 share payloads: the oracle re-encodes with Python's base64
+    # and recovers through either encoding interchangeably.
+    import base64 as _b64
+    for iteration in range(8):
+        length = rng.randrange(1, 17)
+        secret = bytes(rng.randrange(256) for _ in range(length)).hex()
+        threshold = rng.randrange(2, 5)
+        shares = rng.randrange(threshold, 8)
+        seed = rng.randrange(0, 1 << 32)
+        report = run({"operation": "split", "secret_hex": secret,
+            "threshold": threshold, "shares": shares, "seed": seed,
+            "share_encoding": "base64"})
+        assert report["share_encoding"] == "base64", f"b64-flag-{iteration}"
+        hex_split = run({"operation": "split", "secret_hex": secret,
+            "threshold": threshold, "shares": shares, "seed": seed})
+        for b64_share, hex_share in zip(report["share_list"], hex_split["share_list"]):
+            raw = _b64.b64decode(b64_share["data"], validate=True)
+            assert raw.hex() == hex_share["data"], f"b64-payload-{iteration}"
+            assert b64_share["encoding"] == "base64"
+        mixed = hex_split["share_list"][:threshold - 1] + [report["share_list"][-1]]
+        answer = run({"operation": "combine", "shares": mixed})
+        assert answer["verified"] is True and answer["secret_hex"] == secret, f"b64-mix-{iteration}"
         checked += 1
     # Determinism: one fixed request, twice, byte-identical answers.
     request = {'operation': 'split', 'secret_hex': 'cafebabe', 'threshold': 2,

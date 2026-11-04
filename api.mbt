@@ -20,18 +20,26 @@ pub fn run(request : Value) -> Value raise InputError {
 
 ///|
 /// JSON shape of one share, both ways.
-fn share_to_value(share : Share) -> Value {
+
+///|
+fn share_to_value_as(share : Share, encoding : String) -> Value {
+  let payload = if encoding == "base64" {
+    String(share_bytes_to_base64(share.data))
+  } else {
+    String(to_hex(share.data))
+  }
   record([
     ("index", Number(share.index.to_double())),
     ("threshold", Number(share.threshold.to_double())),
     ("digest", String(digest_hex(share.digest))),
-    ("data", String(to_hex(share.data))),
+    ("data", payload),
+    ("encoding", String(encoding)),
   ])
 }
 
 ///|
 fn share_from_value(value : Value) -> Share raise InputError {
-  fields_only(value, ["index", "threshold", "digest", "data"])
+  fields_only(value, ["index", "threshold", "digest", "data", "encoding"])
   let index = num(required(value, "index"))
   if index.floor() != index || index < 1.0 || index > 255.0 {
     raise InputError("share index must be a whole number 1..255")
@@ -44,7 +52,14 @@ fn share_from_value(value : Value) -> Share raise InputError {
   if digest_bytes.length() != 4 {
     raise InputError("share digest must be 8 hex digits")
   }
-  let data = parse_hex(str(required(value, "data")))
+  let data = match get(value, "encoding") {
+    Null => parse_hex(str(required(value, "data")))
+    String("hex") => parse_hex(str(required(value, "data")))
+    String("base64") => share_bytes_from_base64(str(required(value, "data")))
+    String(other) =>
+      raise InputError("share encoding must be hex or base64, found: " + other)
+    _ => raise InputError("share encoding must be hex or base64")
+  }
   if data.is_empty() {
     raise InputError("share data must carry at least one byte")
   }
@@ -64,6 +79,7 @@ fn share_from_value(value : Value) -> Share raise InputError {
 fn split_with(request : Value) -> Value raise InputError {
   fields_only(request, [
     "operation", "secret_hex", "secret_text", "threshold", "shares", "seed",
+    "share_encoding",
   ])
   let secret = match (get(request, "secret_hex"), get(request, "secret_text")) {
     (Null, Null) => raise InputError("missing field: secret_hex")
@@ -103,6 +119,14 @@ fn split_with(request : Value) -> Value raise InputError {
   if seed.floor() != seed || seed < 0.0 || seed > 9007199254740991.0 {
     raise InputError("seed must be a whole number 0..9007199254740991")
   }
+  let share_encoding = match get(request, "share_encoding") {
+    Null => "hex"
+    String("hex") => "hex"
+    String("base64") => "base64"
+    String(other) =>
+      raise InputError("share_encoding must be hex or base64, found: " + other)
+    _ => raise InputError("share_encoding must be hex or base64")
+  }
   let generated = shamir_split(
     secret,
     threshold.to_int(),
@@ -111,7 +135,7 @@ fn split_with(request : Value) -> Value raise InputError {
   )
   let encoded : Array[Value] = []
   for share in generated {
-    encoded.push(share_to_value(share))
+    encoded.push(share_to_value_as(share, share_encoding))
   }
   record([
     ("algorithm", String("shamir-gf256")),
@@ -119,6 +143,7 @@ fn split_with(request : Value) -> Value raise InputError {
     ("threshold", Number(threshold)),
     ("shares", Number(shares)),
     ("seed", Number(seed)),
+    ("share_encoding", String(share_encoding)),
     ("digest", String(digest_hex(crc32(secret)))),
     ("share_list", Array(encoded)),
   ])
