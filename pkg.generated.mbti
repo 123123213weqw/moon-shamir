@@ -26,6 +26,10 @@ pub fn required(Value, String) -> Value raise InputError
 
 pub fn run(Value) -> Value raise InputError
 
+pub fn sha256_hex(Array[Int32]) -> String
+
+pub fn sha256_raw(Array[Int32]) -> Array[Int32]
+
 pub fn str(Value) -> String raise InputError
 
 // Errors

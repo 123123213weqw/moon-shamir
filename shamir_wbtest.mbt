@@ -328,3 +328,33 @@ test "reshare mints a working split without exposing the secret" {
   )
   assert_eq(get(mixed_answer, "verified"), Bool(false))
 }
+
+///|
+test "sha256 commitment end to end" {
+  let split = run(
+    from_json(
+      @json.parse(
+        "{\"operation\":\"split\",\"secret_text\":\"commit me\",\"threshold\":2,\"shares\":3,\"seed\":9,\"commit\":\"sha256\"}",
+      ),
+    ),
+  )
+  assert_eq(get(split, "commit"), String("sha256"))
+  let shares = match get(split, "share_list") {
+    Array(items) => items
+    _ => abort("share_list missing")
+  }
+  assert_eq(get(shares[0], "commit"), String("sha256"))
+  let combine = run(
+    from_json(
+      @json.parse(
+        "{\"operation\":\"combine\",\"shares\":[" +
+        shares[1].to_json().stringify() +
+        "," +
+        shares[2].to_json().stringify() +
+        "]}",
+      ),
+    ),
+  )
+  assert_eq(get(combine, "verified"), Bool(true))
+  assert_eq(get(combine, "secret_text"), String("commit me"))
+}

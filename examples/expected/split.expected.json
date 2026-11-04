@@ -5,12 +5,14 @@
   "shares": 5,
   "seed": 20261104,
   "share_encoding": "hex",
+  "commit": "crc32",
   "digest": "8407759b",
   "share_list": [
     {
       "index": 1,
       "threshold": 3,
       "digest": "8407759b",
+      "commit": "crc32",
       "data": "89ecf44f638ee2044c2b74a3c06be26e",
       "encoding": "hex"
     },
@@ -18,6 +20,7 @@
       "index": 2,
       "threshold": 3,
       "digest": "8407759b",
+      "commit": "crc32",
       "data": "678dbcb53f2fae918741a2c1e25b0594",
       "encoding": "hex"
     },
@@ -25,6 +28,7 @@
       "index": 3,
       "threshold": 3,
       "digest": "8407759b",
+      "commit": "crc32",
       "data": "ee706ac918f42ae243f37cd9eeed0905",
       "encoding": "hex"
     },
@@ -32,6 +36,7 @@
       "index": 4,
       "threshold": 3,
       "digest": "8407759b",
+      "commit": "crc32",
       "data": "6ddda1c766d0aca0d098307c4823c27a",
       "encoding": "hex"
     },
@@ -39,6 +44,7 @@
       "index": 5,
       "threshold": 3,
       "digest": "8407759b",
+      "commit": "crc32",
       "data": "e42077bb410b28d3142aee644495ceeb",
       "encoding": "hex"
     }

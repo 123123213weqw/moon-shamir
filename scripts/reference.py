@@ -6,6 +6,7 @@ and the coefficient stream is a from-scratch SplitMix64 in Python. Every
 comparison below therefore pits two independent derivations against each
 other.
 """
+import hashlib as _hl
 import itertools, json, random, re, subprocess, sys
 from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
@@ -75,18 +76,22 @@ def crc32(data):
             crc = (crc >> 1) ^ (0xEDB88320 if crc & 1 else 0)
     return crc ^ 0xFFFFFFFF
 
-def split(secret, threshold, shares, seed):
+def split(secret, threshold, shares, seed, commit='crc32'):
     rng = SplitMix64(seed)
     polys = []
     for byte in secret:
         poly = [byte] + [rng.next_byte() for _ in range(threshold - 1)]
         polys.append(poly)
-    digest = crc32(secret)
+    if commit == 'sha256':
+        digest = int.from_bytes(_hl.sha256(bytes(secret)).digest()[:4], 'big')
+    else:
+        digest = crc32(secret)
     out = []
     for x in range(1, shares + 1):
         out.append({
             'index': x, 'threshold': threshold,
-            'digest': f'{digest:08x}', 'data': bytes(gf_eval(p, x) for p in polys).hex(),
+            'digest': f'{digest:08x}', 'commit': commit,
+            'data': bytes(gf_eval(p, x) for p in polys).hex(),
             'encoding': 'hex',
         })
     return out
@@ -269,8 +274,8 @@ def main():
                 points = [(s['index'], bytes.fromhex(s['data'])[b]) for s in basis]
                 data.append(interpolate_at(points, x) ^ gf_eval(hs[b], x))
             out.append({'index': x, 'threshold': threshold_new,
-                'digest': f'{digest:08x}', 'data': bytes(data).hex(),
-                'encoding': 'hex'})
+                'digest': f'{digest:08x}', 'commit': old_shares[0]['commit'],
+                'data': bytes(data).hex(), 'encoding': 'hex'})
         return out
 
     for iteration in range(10):
@@ -295,6 +300,33 @@ def main():
         still = run({"operation": "combine", "shares": old_pick})
         assert still["verified"] is True, f'reshare-old-{iteration}'
         checked += 1
+    # SHA-256 commitments: the label the shares carry must be the first
+    # 32 bits of hashlib's digest, and the whole lifecycle holds.
+    for iteration in range(6):
+        length = rng.randrange(1, 17)
+        secret = bytes(rng.randrange(256) for _ in range(length)).hex()
+        threshold = rng.randrange(2, 5)
+        shares = rng.randrange(threshold, 8)
+        seed = rng.randrange(0, 1 << 32)
+        report = run({"operation": "split", "secret_hex": secret,
+            "threshold": threshold, "shares": shares, "seed": seed,
+            "commit": "sha256"})
+        want_shares = split(bytes.fromhex(secret), threshold, shares, seed, 'sha256')
+        assert report["share_list"] == want_shares, f"sha-shares-{iteration}"
+        want = _hl.sha256(bytes.fromhex(secret)).hexdigest()[:8]
+        assert report["commit"] == "sha256", f"sha-flag-{iteration}"
+        assert report["digest"] == want, (iteration, report["digest"], want)
+        for share_obj in report["share_list"]:
+            assert share_obj["commit"] == "sha256"
+        picked = rng.sample(report["share_list"], threshold)
+        answer = run({"operation": "combine", "shares": picked})
+        assert answer["verified"] is True and answer["secret_hex"] == secret, f"sha-combine-{iteration}"
+        checked += 1
+    # Mixing commitments is refused: same secret, two label kinds.
+    a = run({"operation": "split", "secret_hex": "aabb", "threshold": 2, "shares": 2, "seed": 5, "commit": "crc32"})
+    b = run({"operation": "split", "secret_hex": "aabb", "threshold": 2, "shares": 2, "seed": 5, "commit": "sha256"})
+    run({"operation": "combine", "shares": [a["share_list"][0], b["share_list"][1]]}, error=True)
+    checked += 1
     # Determinism: one fixed request, twice, byte-identical answers.
     request = {'operation': 'split', 'secret_hex': 'cafebabe', 'threshold': 2,
         'shares': 3, 'seed': 7}

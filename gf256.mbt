@@ -97,10 +97,7 @@ fn gf_eval(coefficients : Array[Int32], x : Int32) -> Int32 {
 /// Lagrange: sum of y_i times the product of (at XOR x_j) / (x_i XOR x_j)
 /// over every j other than i. Points must be distinct; at zero the
 /// numerators are x_j, which is the constant-term recovery combine uses.
-fn gf_interpolate_at(
-  points : Array[(Int32, Int32)],
-  at : Int32,
-) -> Int32 {
+fn gf_interpolate_at(points : Array[(Int32, Int32)], at : Int32) -> Int32 {
   let mut acc = 0
   for i in 0..<points.length() {
     let (xi, yi) = points[i]
