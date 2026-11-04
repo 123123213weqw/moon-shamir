@@ -24,6 +24,12 @@ CASES = [
     ('split unknown field', {'operation': 'split', 'secret_hex': 'ab', 'threshold': 2, 'shares': 3, 'wat': 1}),
     ('split both secret forms', {'operation': 'split', 'secret_hex': 'ab', 'secret_text': 'ab', 'threshold': 2, 'shares': 3}),
     ('split neither secret form', {'operation': 'split', 'threshold': 2, 'shares': 3}),
+    ('share encoding unknown', {'operation': 'combine', 'shares': [
+        dict(share(), encoding='rot13'), share(index=2)]}),
+    ('share base64 junk', {'operation': 'combine', 'shares': [
+        dict(share(data='!!not-base64!!'), encoding='base64'), share(index=2)]}),
+    ('split share encoding unknown', {'operation': 'split', 'secret_hex': 'ab',
+        'threshold': 2, 'shares': 3, 'share_encoding': 'hex64'}),
     ('split secret_text not string', {'operation': 'split', 'secret_text': 7, 'threshold': 2, 'shares': 3}),
     ('combine missing shares', {'operation': 'combine'}),
     ('combine shares not array', {'operation': 'combine', 'shares': 7}),
