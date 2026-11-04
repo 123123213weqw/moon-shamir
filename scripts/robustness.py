@@ -28,6 +28,14 @@ CASES = [
         dict(share(), encoding='rot13'), share(index=2)]}),
     ('share base64 junk', {'operation': 'combine', 'shares': [
         dict(share(data='!!not-base64!!'), encoding='base64'), share(index=2)]}),
+    ('share words junk', {'operation': 'combine', 'shares': [
+        dict(share(data='zzzz blet perm kana yawy clan toed flaw'),
+            encoding='words'), share(index=2)]}),
+    ('share words index disagree', {'operation': 'combine', 'shares': [
+        dict(share(index=2, data='blet blet perm kana yawy clan toed flaw'),
+            encoding='words'), share(index=2)]}),
+    ('share words too few', {'operation': 'combine', 'shares': [
+        dict(share(data='blet blet'), encoding='words'), share(index=2)]}),
     ('split share encoding unknown', {'operation': 'split', 'secret_hex': 'ab',
         'threshold': 2, 'shares': 3, 'share_encoding': 'hex64'}),
     ('split secret_text not string', {'operation': 'split', 'secret_text': 7, 'threshold': 2, 'shares': 3}),

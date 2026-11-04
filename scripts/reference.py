@@ -6,7 +6,7 @@ and the coefficient stream is a from-scratch SplitMix64 in Python. Every
 comparison below therefore pits two independent derivations against each
 other.
 """
-import itertools, json, random, subprocess, sys
+import itertools, json, random, re, subprocess, sys
 from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 CLI = ROOT / '_build/js/debug/build/cmd/main/main.js'
@@ -209,6 +209,33 @@ def main():
         mixed = hex_split["share_list"][:threshold - 1] + [report["share_list"][-1]]
         answer = run({"operation": "combine", "shares": mixed})
         assert answer["verified"] is True and answer["secret_hex"] == secret, f"b64-mix-{iteration}"
+        checked += 1
+    # Mnemonic shares: the word table is parsed out of the engine source
+    # (one shared constant), and the encode/decode logic here is written
+    # independently, checksum and all.
+    word_table = re.findall(r'"([a-z]{4})"', (ROOT / 'moonwords.mbt').read_text())
+    assert len(word_table) == 256, 'word table parse'
+    for iteration in range(8):
+        length = rng.randrange(1, 13)
+        secret = bytes(rng.randrange(256) for _ in range(length)).hex()
+        threshold = rng.randrange(2, 5)
+        shares = rng.randrange(threshold, 8)
+        seed = rng.randrange(0, 1 << 32)
+        report = run({"operation": "split", "secret_hex": secret,
+            "threshold": threshold, "shares": shares, "seed": seed,
+            "share_encoding": "words"})
+        hex_split = run({"operation": "split", "secret_hex": secret,
+            "threshold": threshold, "shares": shares, "seed": seed})
+        for word_share, hex_share in zip(report["share_list"], hex_split["share_list"]):
+            words = word_share["data"].split(" ")
+            payload = bytes(word_table.index(w) for w in words[2:-2])
+            assert payload.hex() == hex_share["data"], f"words-payload-{iteration}"
+            crc = crc32(bytes([word_table.index(words[0]), word_table.index(words[1])]) + payload)
+            assert word_table.index(words[-2]) == (crc >> 24) & 0xFF, f"words-crc-{iteration}"
+            assert word_table.index(words[-1]) == (crc >> 16) & 0xFF, f"words-crc-lo-{iteration}"
+        picked = report["share_list"][:threshold]
+        answer = run({"operation": "combine", "shares": picked})
+        assert answer["verified"] is True and answer["secret_hex"] == secret, f"words-combine-{iteration}"
         checked += 1
     # Determinism: one fixed request, twice, byte-identical answers.
     request = {'operation': 'split', 'secret_hex': 'cafebabe', 'threshold': 2,
