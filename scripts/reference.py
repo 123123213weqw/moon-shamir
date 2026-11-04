@@ -165,6 +165,27 @@ def main():
         answer = combine(want)
         assert answer.hex() == secret, f'oracle-combine-{iteration}'
         checked += 1
+    # Text secrets: UTF-8 is the only transformation, so the oracle
+    # encodes with Python's own utf-8 and compares end to end.
+    for iteration in range(8):
+        alphabet = "钥匙密钥备份key🔑日本語您好0123 pass phrase"
+        text = ''.join(rng.choice(alphabet) for _ in range(rng.randrange(1, 24)))
+        threshold = rng.randrange(2, 5)
+        shares = rng.randrange(threshold, 8)
+        seed = rng.randrange(0, 1 << 32)
+        request = {'operation': 'split', 'secret_text': text,
+            'threshold': threshold, 'shares': shares, 'seed': seed}
+        report = run(request)
+        encoded = text.encode('utf-8')
+        assert report['secret_bytes'] == len(encoded), f'text-len-{iteration}'
+        want = split(encoded, threshold, shares, seed)
+        assert report['share_list'] == want, f'text-{iteration}'
+        picked = [report['share_list'][i] for i in
+            rng.sample(range(shares), threshold)]
+        answer = run({'operation': 'combine', 'shares': picked})
+        assert answer['verified'] is True, f'text-verified-{iteration}'
+        assert answer['secret_text'] == text, f'text-roundtrip-{iteration}'
+        checked += 1
     # Determinism: one fixed request, twice, byte-identical answers.
     request = {'operation': 'split', 'secret_hex': 'cafebabe', 'threshold': 2,
         'shares': 3, 'seed': 7}

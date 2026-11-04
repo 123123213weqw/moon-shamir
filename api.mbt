@@ -63,9 +63,18 @@ fn share_from_value(value : Value) -> Share raise InputError {
 /// pair reproduces the same shares everywhere.
 fn split_with(request : Value) -> Value raise InputError {
   fields_only(request, [
-    "operation", "secret_hex", "threshold", "shares", "seed",
+    "operation", "secret_hex", "secret_text", "threshold", "shares", "seed",
   ])
-  let secret = parse_hex(str(required(request, "secret_hex")))
+  let secret = match (get(request, "secret_hex"), get(request, "secret_text")) {
+    (Null, Null) => raise InputError("missing field: secret_hex")
+    (String(hex), Null) => parse_hex(hex)
+    (Null, String(text)) => utf8_bytes(text)
+    (Null, other) => {
+      let _ = str(other)
+      abort("unreachable")
+    }
+    _ => raise InputError("secret_hex and secret_text are mutually exclusive")
+  }
   if secret.is_empty() {
     raise InputError("secret_hex must carry at least one byte")
   }
@@ -132,12 +141,17 @@ fn combine_with(request : Value) -> Value raise InputError {
     parsed.push(share_from_value(entry))
   }
   let (recovered, verified) = shamir_combine(parsed)
-  record([
+  let fields : Array[(String, Value)] = [
     ("algorithm", String("shamir-gf256")),
     ("secret_hex", String(to_hex(recovered))),
     ("recovered_digest", String(digest_hex(crc32(recovered)))),
     ("verified", Bool(verified)),
-  ])
+  ]
+  match utf8_text(recovered) {
+    Some(text) => fields.push(("secret_text", String(text)))
+    None => ()
+  }
+  record(fields)
 }
 
 ///|

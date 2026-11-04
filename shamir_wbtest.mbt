@@ -175,3 +175,55 @@ test "verify audits without returning the secret" {
   // A verify response never carries the secret bytes.
   assert_eq(get(report, "secret_hex"), Null)
 }
+
+///|
+test "text secrets split and recombine through the JSON boundary" {
+  let split = run(
+    from_json(
+      @json.parse(
+        "{\"operation\":\"split\",\"secret_text\":\"钥匙备份 backup 🔑\",\"threshold\":2,\"shares\":3,\"seed\":2026}",
+      ),
+    ),
+  )
+  assert_eq(get(split, "secret_bytes"), Number(24))
+  let shares = match get(split, "share_list") {
+    Array(items) => items
+    _ => abort("share_list missing")
+  }
+  let combine = run(
+    from_json(
+      @json.parse(
+        "{\"operation\":\"combine\",\"shares\":[" +
+        shares[0].to_json().stringify() +
+        "," +
+        shares[2].to_json().stringify() +
+        "]}",
+      ),
+    ),
+  )
+  assert_eq(get(combine, "verified"), Bool(true))
+  assert_eq(get(combine, "secret_text"), String("钥匙备份 backup 🔑"))
+}
+
+///|
+test "secret_hex and secret_text are mutually exclusive" {
+  let refused = String(
+    match
+      run(
+        from_json(
+          @json.parse(
+            "{\"operation\":\"split\",\"secret_hex\":\"ab\",\"secret_text\":\"ab\",\"threshold\":2,\"shares\":3}",
+          ),
+        ),
+      ) {
+      _ => "no error raised"
+    },
+  ) catch {
+    InputError(message) => String(message)
+    other => String(other.to_string())
+  }
+  assert_eq(
+    refused,
+    String("secret_hex and secret_text are mutually exclusive"),
+  )
+}
