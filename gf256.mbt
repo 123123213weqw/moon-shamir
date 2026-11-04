@@ -4,7 +4,47 @@
 /// the Lagrange interpolation in shamir.mbt lose its minus signs: the
 /// weight of point i at zero is the product of x_j times the inverse of
 /// x_i XOR x_j.
+
+///|
+/// Exponent and logarithm tables over generator 3, which has order 255
+/// over 0x11B. Multiplication becomes an add of logarithms - the same
+/// field through a different construction than shift-and-reduce, and the
+/// two are held equal on every input pair by the exhaustive test below.
+let gf_exp : FixedArray[Int32] = FixedArray::make(512, 0)
+
+///|
+let gf_log : FixedArray[Int32] = FixedArray::make(256, 0)
+
+///|
+fn init {
+  // Multiply by 3 is x XOR xtime(x), with xtime reducing past 0x100.
+  let mut x = 1
+  for i in 0..<255 {
+    gf_exp[i] = x
+    gf_log[x] = i
+    let doubled = x << 1
+    let reduced = if doubled >= 256 { doubled ^ 0x11B } else { doubled }
+    x = x ^ reduced
+  }
+  for i in 255..<512 {
+    gf_exp[i] = gf_exp[i - 255]
+  }
+}
+
+///|
+/// Table multiplication: zero short-circuits because it has no logarithm.
 fn gf_mul(left : Int32, right : Int32) -> Int32 {
+  if left == 0 || right == 0 {
+    0
+  } else {
+    gf_exp[gf_log[left] + gf_log[right]]
+  }
+}
+
+///|
+/// The shift-and-reduce multiplier the tables were built against, kept as
+/// the independent witness for the exhaustive equality test.
+fn gf_mul_shift(left : Int32, right : Int32) -> Int32 {
   let mut product = 0
   let mut x = left
   let mut y = right
@@ -95,4 +135,21 @@ test "gf256 field laws" {
   // Extra points beyond the degree still land on the same polynomial.
   points.push((4, gf_eval(coefficients, 4)))
   assert_eq(gf_interpolate_zero(points), 42)
+}
+
+///|
+test "table and shift multipliers agree on every pair" {
+  // All 65536 input pairs: the two constructions of the field must agree
+  // everywhere, and the table's generator must really have order 255.
+  for a in 0..<256 {
+    for b in 0..<256 {
+      assert_eq(gf_mul(a, b), gf_mul_shift(a, b))
+    }
+  }
+  assert_eq(gf_exp[0], 1)
+  assert_eq(gf_exp[254] != 1, true)
+  assert_eq(gf_exp[255], 1)
+  for v in 1..<256 {
+    assert_eq(gf_exp[gf_log[v]], v)
+  }
 }
