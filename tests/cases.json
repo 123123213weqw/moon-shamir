@@ -117,5 +117,20 @@
       "verified": true,
       "secret_length": 1
     }
+  },
+  {
+    "name": "words split recovers like hex",
+    "request": {
+      "operation": "split",
+      "secret_hex": "5a",
+      "threshold": 2,
+      "shares": 3,
+      "seed": 1,
+      "share_encoding": "words"
+    },
+    "expected": {
+      "share_encoding": "words",
+      "secret_bytes": 1
+    }
   }
 ]

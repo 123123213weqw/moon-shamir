@@ -26,7 +26,11 @@ fn share_to_value_as(share : Share, encoding : String) -> Value {
   let payload = if encoding == "base64" {
     String(share_bytes_to_base64(share.data))
   } else {
-    String(to_hex(share.data))
+    if encoding == "words" {
+      String(mnemonic_encode(share.index, share.threshold, share.data).join(" "))
+    } else {
+      String(to_hex(share.data))
+    }
   }
   record([
     ("index", Number(share.index.to_double())),
@@ -56,9 +60,28 @@ fn share_from_value(value : Value) -> Share raise InputError {
     Null => parse_hex(str(required(value, "data")))
     String("hex") => parse_hex(str(required(value, "data")))
     String("base64") => share_bytes_from_base64(str(required(value, "data")))
+    String("words") => {
+      let pieces = str(required(value, "data")).split(" ").collect()
+      let words : Array[String] = []
+      for piece in pieces {
+        words.push(piece.to_owned())
+      }
+      let decoded = mnemonic_decode(words)
+      // The words already encode index and threshold; the fields must
+      // agree with them, so two sources of truth cannot disagree quietly.
+      if decoded.index != index.to_int() {
+        raise InputError("share index field and mnemonic word 1 disagree")
+      }
+      if decoded.threshold != threshold.to_int() {
+        raise InputError("share threshold field and mnemonic word 2 disagree")
+      }
+      decoded.data
+    }
     String(other) =>
-      raise InputError("share encoding must be hex or base64, found: " + other)
-    _ => raise InputError("share encoding must be hex or base64")
+      raise InputError(
+        "share encoding must be hex, base64 or words, found: " + other,
+      )
+    _ => raise InputError("share encoding must be hex, base64 or words")
   }
   if data.is_empty() {
     raise InputError("share data must carry at least one byte")
@@ -123,9 +146,12 @@ fn split_with(request : Value) -> Value raise InputError {
     Null => "hex"
     String("hex") => "hex"
     String("base64") => "base64"
+    String("words") => "words"
     String(other) =>
-      raise InputError("share_encoding must be hex or base64, found: " + other)
-    _ => raise InputError("share_encoding must be hex or base64")
+      raise InputError(
+        "share_encoding must be hex, base64 or words, found: " + other,
+      )
+    _ => raise InputError("share_encoding must be hex, base64 or words")
   }
   let generated = shamir_split(
     secret,
