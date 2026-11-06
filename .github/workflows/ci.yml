@@ -14,13 +14,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Install MoonBit (pinned release asset - the ladder's toolchain)
+      - name: Install MoonBit
         run: |
-          mkdir -p "$HOME/.moon"
-          curl -fsSL https://github.com/123123213weqw/moon-shamir/releases/download/toolchain-0.1.20261023/moonbit-0.1.20261023-linux-x86_64.tar.gz \
-            | tar xz -C "$HOME/.moon"
+          curl -fsSL https://cli.moonbitlang.com/install/unix.sh | bash
           echo "$HOME/.moon/bin" >> "$GITHUB_PATH"
-          "$HOME/.moon/bin/moon" version
       - name: Check (${{ matrix.target }})
         run: moon check --deny-warn --target ${{ matrix.target }}
       - name: Test (${{ matrix.target }})
@@ -40,13 +37,10 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Install MoonBit (pinned release asset)
+      - name: Install MoonBit
         run: |
-          mkdir -p "$HOME/.moon"
-          curl -fsSL https://github.com/123123213weqw/moon-shamir/releases/download/toolchain-0.1.20261023/moonbit-0.1.20261023-linux-x86_64.tar.gz \
-            | tar xz -C "$HOME/.moon"
+          curl -fsSL https://cli.moonbitlang.com/install/unix.sh | bash
           echo "$HOME/.moon/bin" >> "$GITHUB_PATH"
-          "$HOME/.moon/bin/moon" version
       - name: Build CLI
         run: moon build --target js
       - name: Fixtures

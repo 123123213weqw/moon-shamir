@@ -416,7 +416,7 @@ fn json_shares(items : Array[Value]) -> String {
 }
 
 ///|
-fn json_slice(items : Array[Value], count : Int) -> String {
+fn json_slice(items : Array[Value], count : Int32) -> String {
   let picked : Array[Value] = []
   for i in 0..<count {
     picked.push(items[i])
@@ -475,9 +475,7 @@ test "reshare chains across generations with rising thresholds" {
     let combine = run(
       from_json(
         @json.parse(
-          "{\"operation\":\"combine\",\"shares\":" +
-          json_shares(chosen) +
-          "}",
+          "{\"operation\":\"combine\",\"shares\":" + json_shares(chosen) + "}",
         ),
       ),
     )
