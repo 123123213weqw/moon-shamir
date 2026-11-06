@@ -1,0 +1,37 @@
+{
+  "algorithm": "shamir-gf256",
+  "secret_bytes": 8,
+  "threshold": 2,
+  "shares": 3,
+  "seed": 20261107,
+  "share_encoding": "words",
+  "commit": "crc32",
+  "digest": "53e36388",
+  "seed_derivation": "direct",
+  "share_list": [
+    {
+      "index": 1,
+      "threshold": 2,
+      "digest": "53e36388",
+      "commit": "crc32",
+      "data": "bleb blet oket hawk dabb tock user bode veil give wast load",
+      "encoding": "words"
+    },
+    {
+      "index": 2,
+      "threshold": 2,
+      "digest": "53e36388",
+      "commit": "crc32",
+      "data": "blet blet lipa core yerd nail winy born owse tome brig kora",
+      "encoding": "words"
+    },
+    {
+      "index": 3,
+      "threshold": 2,
+      "digest": "53e36388",
+      "commit": "crc32",
+      "data": "cuir blet load mane wage gnaw lasa roam mall lipa snod ogre",
+      "encoding": "words"
+    }
+  ]
+}

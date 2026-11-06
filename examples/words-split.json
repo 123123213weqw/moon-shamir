@@ -1,0 +1,8 @@
+{
+  "operation": "split",
+  "secret_hex": "a1b2c3d4e5f60718",
+  "threshold": 2,
+  "shares": 3,
+  "seed": 20261107,
+  "share_encoding": "words"
+}

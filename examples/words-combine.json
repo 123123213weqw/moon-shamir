@@ -1,0 +1,21 @@
+{
+  "operation": "combine",
+  "shares": [
+    {
+      "index": 1,
+      "threshold": 2,
+      "digest": "53e36388",
+      "commit": "crc32",
+      "data": "bleb blet oket hawk dabb tock user bode veil give wast load",
+      "encoding": "words"
+    },
+    {
+      "index": 3,
+      "threshold": 2,
+      "digest": "53e36388",
+      "commit": "crc32",
+      "data": "cuir blet load mane wage gnaw lasa roam mall lipa snod ogre",
+      "encoding": "words"
+    }
+  ]
+}
