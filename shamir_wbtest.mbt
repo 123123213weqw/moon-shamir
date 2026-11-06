@@ -358,3 +358,54 @@ test "sha256 commitment end to end" {
   assert_eq(get(combine, "verified"), Bool(true))
   assert_eq(get(combine, "secret_text"), String("commit me"))
 }
+
+///|
+test "kdf standalone equals the password path of split" {
+  let derived = run(
+    from_json(
+      @json.parse(
+        "{\"operation\":\"kdf\",\"password\":\"paper backup\",\"salt_hex\":\"cafe\",\"iterations\":1000}",
+      ),
+    ),
+  )
+  let seed = get(derived, "seed")
+  let with_password = run(
+    from_json(
+      @json.parse(
+        "{\"operation\":\"split\",\"secret_hex\":\"a1b2\",\"threshold\":2,\"shares\":3,\"password\":\"paper backup\",\"salt_hex\":\"cafe\",\"iterations\":1000}",
+      ),
+    ),
+  )
+  let with_seed = run(
+    from_json(
+      @json.parse(
+        "{\"operation\":\"split\",\"secret_hex\":\"a1b2\",\"threshold\":2,\"shares\":3,\"seed\":" +
+        seed.to_json().stringify() +
+        "}",
+      ),
+    ),
+  )
+  assert_eq(get(with_password, "share_list"), get(with_seed, "share_list"))
+  assert_eq(get(with_password, "seed_derivation"), String("pbkdf2-sha256"))
+  assert_eq(get(with_seed, "seed_derivation"), String("direct"))
+}
+
+///|
+test "seed and password are mutually exclusive" {
+  let refused = String(
+    match
+      run(
+        from_json(
+          @json.parse(
+            "{\"operation\":\"split\",\"secret_hex\":\"ab\",\"threshold\":2,\"shares\":3,\"seed\":1,\"password\":\"x\"}",
+          ),
+        ),
+      ) {
+      _ => "no error raised"
+    },
+  ) catch {
+    InputError(message) => String(message)
+    other => String(other.to_string())
+  }
+  assert_eq(refused, String("seed and password are mutually exclusive"))
+}
