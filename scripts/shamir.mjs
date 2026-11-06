@@ -57,12 +57,36 @@ if (command === 'split' && (args.length === 3 || args.length === 4)) {
   const report = call(request);
   console.log(`verified ${report.verified}  shares ${report.shares}` +
     `  threshold ${report.threshold}  secret_length ${report.secret_length}`);
+} else if (command === 'reshare' && args.length >= 4) {
+  // reshare <threshold_new> <shares_new> <seed> <share>...
+  const [thresholdNew, sharesNew, seed, ...shareArgs] = args;
+  const report = call({operation: 'reshare',
+    shares: shareArgs.map(parseShare),
+    threshold_new: Number(thresholdNew), shares_new: Number(sharesNew),
+    seed: Number(seed)});
+  console.log(`threshold ${report.threshold_new}  shares ${report.shares_new}` +
+    `  digest ${report.digest}  commit ${report.commit}`);
+  for (const share of report.share_list) {
+    console.log(`${share.index}:${share.threshold}:${share.digest}:${share.data}`);
+  }
+  console.log('# any ' + report.threshold_new + ' of the lines above recover the same secret');
+} else if (command === 'kdf' && args.length >= 1 && args.length <= 3) {
+  const [password, salt, iterations] = args;
+  const request = {operation: 'kdf', password};
+  if (salt !== undefined) request.salt_hex = salt;
+  if (iterations !== undefined) request.iterations = Number(iterations);
+  const report = call(request);
+  console.log(`algorithm ${report.algorithm}  iterations ${report.iterations}` +
+    `  salt ${report.salt_hex}`);
+  console.log(`seed ${report.seed}`);
 } else {
   console.log('Usage:');
   console.log('  shamir.mjs split    <secret-hex> <threshold> <shares> [seed]');
   console.log('  shamir.mjs combine  <share> <share> ...');
   console.log('  shamir.mjs diagnose <share> <share> ...');
   console.log('  shamir.mjs verify   <share> <share> ... [secret-hex]');
+  console.log('  shamir.mjs reshare  <threshold-new> <shares-new> <seed> <share>...');
+  console.log('  shamir.mjs kdf      <password> [salt-hex] [iterations]');
   console.log('A share is index:threshold:digest:data or the JSON object form.');
   process.exit(2);
 }
