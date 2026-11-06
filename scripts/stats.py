@@ -2,7 +2,9 @@
 import json, sys
 from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
-PRODUCTION = ['api.mbt', 'gf256.mbt', 'sha256.mbt', 'shamir.mbt', 'splitmix.mbt', 'text.mbt', 'value.mbt']
+PRODUCTION = ['api.mbt', 'b64.mbt', 'gf256.mbt', 'hmac.mbt', 'mnemonic.mbt',
+    'moonwords.mbt', 'sha256.mbt', 'shamir.mbt', 'splitmix.mbt', 'text.mbt',
+    'value.mbt']
 physical = noncomment = 0
 for name in PRODUCTION:
     for line in (ROOT / name).read_text().splitlines():
@@ -13,8 +15,12 @@ for name in PRODUCTION:
 tests = sum(p.read_text().count('\ntest ') for p in ROOT.glob('*.mbt'))
 fixtures = len(json.loads((ROOT / 'tests/cases.json').read_text()))
 examples = len([p for p in (ROOT / 'examples').glob('*.json')])
+import re as _re
+_pattern = _re.compile(r'(?:raise InputError\(|InputError\(\s*)\n?\s*"([^"]+)"')
+messages = sum(len(_pattern.findall((ROOT / n).read_text()))
+    for n in PRODUCTION)
 stats = {'physical': physical, 'noncomment': noncomment, 'tests': tests,
-    'fixtures': fixtures, 'examples': examples}
+    'fixtures': fixtures, 'examples': examples, 'messages': messages}
 if '--write' in sys.argv:
     table = ('# Source and verification statistics\n\n'
         'Snapshot date: 2026-11-07. Module version: 0.3.0.\n\n'
@@ -23,7 +29,8 @@ if '--write' in sys.argv:
         f'| Nonblank, non-comment production lines | {noncomment} |\n'
         f'| MoonBit test declarations | {tests} |\n'
         f'| CLI fixture cases | {fixtures} |\n'
-        f'| Pinned examples | {examples} |\n\n'
+        f'| Pinned examples | {examples} |\n'
+        f'| Refusal messages | {messages} |\n\n'
         'Production counts the algorithm and boundary files only; tests,\n'
         'scripts, examples and documentation are excluded. Recount with\n'
         '--write; this table is the record, not the source of truth.\n')
