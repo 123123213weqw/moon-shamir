@@ -327,6 +327,46 @@ def main():
     b = run({"operation": "split", "secret_hex": "aabb", "threshold": 2, "shares": 2, "seed": 5, "commit": "sha256"})
     run({"operation": "combine", "shares": [a["share_list"][0], b["share_list"][1]]}, error=True)
     checked += 1
+    # KDF: seeds derived from passwords must equal Python's own
+    # PBKDF2-HMAC-SHA256, masked to 53 bits, and a password split must
+    # answer exactly what the same numeric seed's split answers.
+    def derive_seed(password, salt, iterations):
+        raw = _hl.pbkdf2_hmac('sha256', password.encode('utf-8'),
+            bytes(salt), iterations)
+        value = int.from_bytes(raw[:7], 'big')
+        return value >> 3
+
+    for iteration in range(6):
+        password = ''.join(rng.choice('pass phrase 中文🔑') for _ in range(rng.randrange(4, 20)))
+        salt = bytes(rng.randrange(256) for _ in range(rng.randrange(0, 9)))
+        iterations = rng.choice([1, 2, 1000, 4096])
+        report = run({"operation": "kdf", "password": password,
+            "salt_hex": salt.hex(), "iterations": iterations})
+        want = derive_seed(password, salt, iterations)
+        assert report["seed"] == want, f'kdf-{iteration}'
+        assert report["algorithm"] == "pbkdf2-sha256", f'kdf-alg-{iteration}'
+        # A password split equals the numeric-seed split of the same value.
+        secret = bytes(rng.randrange(256) for _ in range(rng.randrange(1, 9))).hex()
+        threshold = rng.randrange(2, 4)
+        shares = rng.randrange(threshold, 6)
+        with_password = run({"operation": "split", "secret_hex": secret,
+            "threshold": threshold, "shares": shares, "password": password,
+            "salt_hex": salt.hex(), "iterations": iterations})
+        with_seed = run({"operation": "split", "secret_hex": secret,
+            "threshold": threshold, "shares": shares, "seed": want})
+        assert with_password["share_list"] == with_seed["share_list"], f'kdf-split-{iteration}'
+        assert with_password["seed_derivation"] == "pbkdf2-sha256", f'kdf-flag-{iteration}'
+        assert with_seed["seed_derivation"] == "direct", f'kdf-flag2-{iteration}'
+        picked = with_password["share_list"][:threshold]
+        answer = run({"operation": "combine", "shares": picked})
+        assert answer["verified"] is True and answer["secret_hex"] == secret, f'kdf-combine-{iteration}'
+        checked += 1
+    # Default salt and iterations are pinned behavior.
+    a = run({"operation": "kdf", "password": "defaults"})
+    b = run({"operation": "kdf", "password": "defaults",
+        "salt_hex": "6d6f6f6e7368616d6972", "iterations": 10000})
+    assert a == b, 'kdf-defaults'
+    checked += 1
     # Determinism: one fixed request, twice, byte-identical answers.
     request = {'operation': 'split', 'secret_hex': 'cafebabe', 'threshold': 2,
         'shares': 3, 'seed': 7}
