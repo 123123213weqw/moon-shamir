@@ -29,6 +29,10 @@ LINES=$(grep -v '^#' /tmp/shamir_shares.txt | grep ':')
 node scripts/shamir.mjs combine $(echo "$LINES" | sed -n '1p;3p;5p') | grep -q 'secret_hex 0123456789abcdef' \
   && node scripts/shamir.mjs diagnose $(echo "$LINES" | tr '\n' ' ') | grep -q 'suspects \[\]' \
   && echo 'round trip passed'
+printf 'bench: '
+moon bench --target js 2>/dev/null | grep -c ' ok$' | xargs -I{} echo '{} benchmarks ran'
+printf 'scale: '
+python3 -B scripts/scale.py | tail -1
 printf 'stats: '
 python3 -B scripts/stats.py | tail -1
 moon fmt --check

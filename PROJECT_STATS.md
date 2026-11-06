@@ -4,9 +4,9 @@ Snapshot date: 2026-11-04. Module version: 0.2.0.
 
 | Category | Count |
 |---|---:|
-| Owned production MoonBit physical lines (root) | 1597 |
-| Nonblank, non-comment production lines | 1317 |
-| MoonBit test declarations | 23 |
+| Owned production MoonBit physical lines (root) | 1602 |
+| Nonblank, non-comment production lines | 1322 |
+| MoonBit test declarations | 25 |
 | CLI fixture cases | 7 |
 | Pinned examples | 3 |
 
