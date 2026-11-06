@@ -7,4 +7,5 @@ import {
 import {
   "moonbitlang/core/bench",
   "moonbitlang/core/json",
+  "moonbitlang/core/quickcheck",
 } for "wbtest"
