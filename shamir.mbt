@@ -158,13 +158,21 @@ fn shamir_combine(
   for i in 0..<threshold {
     chosen.push(sorted[i])
   }
+  // The Lagrange weights depend only on the chosen x coordinates, so
+  // they are computed once for the whole share set; each byte position
+  // then costs k multiplies instead of k^2 inversions.
+  let zero_points : Array[(Int32, Int32)] = []
+  for share in chosen {
+    zero_points.push((share.index, 0))
+  }
+  let weights = gf_lagrange_weights(zero_points, 0)
   let recovered : Array[Int32] = []
   for b in 0..<width {
     let points : Array[(Int32, Int32)] = []
     for share in chosen {
       points.push((share.index, share.data[b]))
     }
-    recovered.push(gf_interpolate_zero(points))
+    recovered.push(gf_interpolate_weighted(points, weights))
   }
   (recovered, commit_digest(recovered, commit) == digest)
 }
@@ -289,13 +297,18 @@ fn shamir_diagnose(shares : Array[Share]) -> Value raise InputError {
     if picked.length() != threshold {
       continue
     }
+    let zero_points : Array[(Int32, Int32)] = []
+    for share in picked {
+      zero_points.push((share.index, 0))
+    }
+    let weights = gf_lagrange_weights(zero_points, 0)
     let candidate : Array[Int32] = []
     for b in 0..<width {
       let points : Array[(Int32, Int32)] = []
       for share in picked {
         points.push((share.index, share.data[b]))
       }
-      candidate.push(gf_interpolate_zero(points))
+      candidate.push(gf_interpolate_weighted(points, weights))
     }
     if commit_digest(candidate, shares[0].commit) == digest {
       consistent_subsets += 1
@@ -440,13 +453,20 @@ fn shamir_reshare(
       continue
     }
     allocated = allocated + 1
+    // Weights at this x depend only on the basis x coordinates, so one
+    // set serves every byte position.
+    let basis_x : Array[(Int32, Int32)] = []
+    for share in basis {
+      basis_x.push((share.index, 0))
+    }
+    let weights = gf_lagrange_weights(basis_x, x)
     let data : Array[Int32] = []
     for b in 0..<width {
       let points : Array[(Int32, Int32)] = []
       for share in basis {
         points.push((share.index, share.data[b]))
       }
-      let f_at = gf_interpolate_at(points, x)
+      let f_at = gf_interpolate_weighted(points, weights)
       data.push(f_at ^ gf_eval(hs[b], x))
     }
     out.push({
