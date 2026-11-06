@@ -1,0 +1,62 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  backends:
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [js, wasm, wasm-gc, native]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install MoonBit
+        run: |
+          curl -fsSL https://cli.moonbitlang.com/install/unix.sh | bash
+          echo "$HOME/.moon/bin" >> "$GITHUB_PATH"
+      - name: Check (${{ matrix.target }})
+        run: moon check --deny-warn --target ${{ matrix.target }}
+      - name: Test (${{ matrix.target }})
+        run: moon test --target ${{ matrix.target }}
+      - name: Bench smoke (${{ matrix.target }})
+        if: matrix.target == 'js'
+        run: moon bench --target js
+
+  ladder:
+    runs-on: ubuntu-latest
+    needs: backends
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install MoonBit
+        run: |
+          curl -fsSL https://cli.moonbitlang.com/install/unix.sh | bash
+          echo "$HOME/.moon/bin" >> "$GITHUB_PATH"
+      - name: Build CLI
+        run: moon build --target js
+      - name: Fixtures
+        run: node scripts/check.mjs
+      - name: Independent oracle
+        run: python3 -B scripts/reference.py
+      - name: Malformed-input sweep
+        run: python3 -B scripts/robustness.py
+      - name: CLI tool round trip
+        run: |
+          node scripts/shamir.mjs split 0123456789abcdef 3 5 2026 > /tmp/shares.txt
+          LINES=$(grep -v '^#' /tmp/shares.txt | grep ':')
+          node scripts/shamir.mjs combine $(echo "$LINES" | sed -n '1p;3p;5p') | grep -q 'secret_hex 0123456789abcdef'
+      - name: Scale gate
+        run: python3 -B scripts/scale.py
+      - name: Stats recount
+        run: python3 -B scripts/stats.py
+      - name: Format
+        run: moon fmt --check
