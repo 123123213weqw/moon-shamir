@@ -119,6 +119,62 @@ fn gf_interpolate_zero(points : Array[(Int32, Int32)]) -> Int32 {
 }
 
 ///|
+/// The Lagrange weights of the points at `at`, computed once: weight_i =
+/// product over j != i of (at XOR x_j) / (x_i XOR x_j). With the weights
+/// in hand, interpolating any number of byte positions costs k multiplies
+/// each instead of k^2 inversions each - the batch shape combine,
+/// diagnose and reshare all want.
+fn gf_lagrange_weights(
+  points : Array[(Int32, Int32)],
+  at : Int32,
+) -> Array[Int32] {
+  let weights : Array[Int32] = []
+  for i in 0..<points.length() {
+    let (xi, _) = points[i]
+    let mut weight = 1
+    for j in 0..<points.length() {
+      if j != i {
+        let (xj, _) = points[j]
+        weight = gf_mul(weight, gf_mul(at ^ xj, gf_inv(xi ^ xj)))
+      }
+    }
+    weights.push(weight)
+  }
+  weights
+}
+
+///|
+/// Interpolate with precomputed weights: sum of y_i times weight_i, all
+/// additions being XOR.
+fn gf_interpolate_weighted(
+  points : Array[(Int32, Int32)],
+  weights : Array[Int32],
+) -> Int32 {
+  let mut acc = 0
+  for i in 0..<points.length() {
+    acc = acc ^ gf_mul(points[i].1, weights[i])
+  }
+  acc
+}
+
+///|
+test "batched weights interpolate identically" {
+  // Three random-ish polynomials through the same point set: direct and
+  // batched paths must agree at zero and at a nonzero point.
+  let points : Array[(Int32, Int32)] = [(1, 87), (4, 202), (9, 14), (77, 231)]
+  for at in [0, 2, 255] {
+    let direct = gf_interpolate_at(points, at)
+    let weights = gf_lagrange_weights(points, at)
+    assert_eq(gf_interpolate_weighted(points, weights), direct)
+  }
+  // Weights are position-only: same x's, different y's, same weights.
+  let moved : Array[(Int32, Int32)] = [(1, 5), (4, 6), (9, 7), (77, 8)]
+  let a = gf_lagrange_weights(points, 3)
+  let b = gf_lagrange_weights(moved, 3)
+  assert_eq(a, b)
+}
+
+///|
 test "gf256 field laws" {
   // Every nonzero element has an inverse; a * inv(a) == 1.
   for a in 1..<256 {
