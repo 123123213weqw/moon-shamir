@@ -28,11 +28,13 @@ function parseShare(text) {
 
 const command = process.argv[2];
 const args = process.argv.slice(3);
-if (command === 'split' && (args.length === 3 || args.length === 4)) {
-  const [hex, threshold, shares, seed] = args;
-  const report = call({operation: 'split', secret_hex: hex,
+if (command === 'split' && (args.length >= 3 && args.length <= 5)) {
+  const [hex, threshold, shares, seed, encoding] = args;
+  const request = {operation: 'split', secret_hex: hex,
     threshold: Number(threshold), shares: Number(shares),
-    seed: seed === undefined ? 0 : Number(seed)});
+    seed: seed === undefined ? 0 : Number(seed)};
+  if (encoding !== undefined) request.share_encoding = encoding;
+  const report = call(request);
   console.log(`algorithm ${report.algorithm}  threshold ${report.threshold}` +
     `  shares ${report.shares}  digest ${report.digest}`);
   for (const share of report.share_list) {
