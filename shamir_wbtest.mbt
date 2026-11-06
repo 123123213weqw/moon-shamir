@@ -507,3 +507,60 @@ test "reshare chains across generations with rising thresholds" {
   // has climbed from 2 to 5.
   assert_eq(threshold, 5)
 }
+
+///|
+test "the full ring: 255 shares at threshold 255" {
+  // n = 255 is the coordinate ceiling. At threshold 255 the split is
+  // pure: every share is needed, one subset exists, and recovery takes
+  // the whole ring - the degenerate case the Lagrange code must handle
+  // without special pleading.
+  let split = run(
+    from_json(
+      @json.parse(
+        "{\"operation\":\"split\",\"secret_hex\":\"ff\",\"threshold\":255,\"shares\":255,\"seed\":20261107}",
+      ),
+    ),
+  )
+  assert_eq(get(split, "threshold"), Number(255))
+  let shares = match get(split, "share_list") {
+    Array(items) => items
+    _ => abort("share_list missing")
+  }
+  assert_eq(shares.length(), 255)
+  // One share short is refused with the count named.
+  let short : Array[Value] = []
+  for i in 0..<254 {
+    short.push(shares[i])
+  }
+  let refused = try {
+    let _ = run(
+      from_json(
+        @json.parse(
+          "{\"operation\":\"combine\",\"shares\":" +
+          json_shares(short) +
+          "}",
+        ),
+      ),
+    )
+    false
+  } catch {
+    InputError(message) => message == "need at least 255 shares to combine, got 254"
+    other => {
+      let _ = other
+      false
+    }
+  }
+  assert_eq(refused, true)
+  // All 255 recover the single byte.
+  let combine = run(
+    from_json(
+      @json.parse(
+        "{\"operation\":\"combine\",\"shares\":" +
+        json_shares(shares) +
+        "}",
+      ),
+    ),
+  )
+  assert_eq(get(combine, "secret_hex"), String("ff"))
+  assert_eq(get(combine, "verified"), Bool(true))
+}
