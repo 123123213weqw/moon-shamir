@@ -367,6 +367,41 @@ def main():
         "salt_hex": "6d6f6f6e7368616d6972", "iterations": 10000})
     assert a == b, 'kdf-defaults'
     checked += 1
+    # Reshare chains: three generations of rising thresholds minted by
+    # the oracle's own arithmetic; every generation must recover, and a
+    # cross-generation mix must be refused.
+    for iteration in range(5):
+        length = rng.randrange(1, 7)
+        secret = bytes(rng.randrange(256) for _ in range(length)).hex()
+        threshold = rng.randrange(2, 4)
+        shares = threshold + rng.randrange(0, 3)
+        seed = rng.randrange(0, 1 << 32)
+        made = split(bytes.fromhex(secret), threshold, shares, seed)
+        for generation in range(3):
+            threshold += 1
+            new_count = threshold + rng.randrange(1, 3)
+            new_seed = rng.randrange(0, 1 << 32)
+            request = {"operation": "reshare",
+                "shares": made[:threshold - 1],
+                "threshold_new": threshold, "shares_new": new_count,
+                "seed": new_seed}
+            report = run(request)
+            want = reshare(made[:threshold - 1], threshold, new_count, new_seed)
+            assert report["share_list"] == want, f'chain-{iteration}-gen{generation}'
+            picked = rng.sample(report["share_list"], threshold)
+            answer = run({"operation": "combine", "shares": picked})
+            assert answer["verified"] is True and answer["secret_hex"] == secret, f'chain-recover-{iteration}-gen{generation}'
+            made = report["share_list"]
+        # After three generations the old generation-0 shares are stale:
+        # forged onto the new threshold they interpolate garbage that
+        # fails the label; with their true threshold they are refused.
+        stale = [dict(s, threshold=threshold) for s in
+            split(bytes.fromhex(secret), 2, shares, seed)[:2]]
+        forged = run({"operation": "combine", "shares": stale + made[:threshold - 2]})
+        assert forged["verified"] is False, f'chain-forged-{iteration}'
+        honest = [dict(s) for s in split(bytes.fromhex(secret), 2, shares, seed)[:2]]
+        run({"operation": "combine", "shares": honest + made[:threshold - 2]}, error=True)
+        checked += 2
     # Determinism: one fixed request, twice, byte-identical answers.
     request = {'operation': 'split', 'secret_hex': 'cafebabe', 'threshold': 2,
         'shares': 3, 'seed': 7}
