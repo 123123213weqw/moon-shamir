@@ -4,7 +4,7 @@ version = "0.2.0"
 
 readme = "README.md"
 
-repository = "https://github.com/yyqdbngt/moon-shamir"
+repository = "https://github.com/123123213weqw/moon-shamir"
 
 license = "Apache-2.0"
 

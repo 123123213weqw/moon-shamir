@@ -4,7 +4,7 @@ Threshold secret sharing over GF(256): split a secret into n shares of
 which any k recover it, in pure MoonBit with a JSON CLI and reusable
 library API.
 
-- Repository: [https://github.com/yyqdbngt/moon-shamir](https://github.com/yyqdbngt/moon-shamir)
+- Repository: [https://github.com/123123213weqw/moon-shamir](https://github.com/123123213weqw/moon-shamir)
 - License: Apache-2.0
 
 ## Why
