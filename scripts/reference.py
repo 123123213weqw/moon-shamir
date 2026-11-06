@@ -402,6 +402,15 @@ def main():
         honest = [dict(s) for s in split(bytes.fromhex(secret), 2, shares, seed)[:2]]
         run({"operation": "combine", "shares": honest + made[:threshold - 2]}, error=True)
         checked += 2
+    # The byte ceiling: exactly 16384 bytes split, recovered, verified.
+    ceiling = bytes((i * 89 + 17) % 256 for i in range(16384))
+    report = run({"operation": "split", "secret_hex": ceiling.hex(),
+        "threshold": 4, "shares": 6, "seed": 20261107})
+    assert report["secret_bytes"] == 16384, 'ceiling length'
+    picked = [report["share_list"][i] for i in (0, 2, 4, 5)]
+    answer = run({"operation": "combine", "shares": picked})
+    assert answer["verified"] is True and answer["secret_hex"] == ceiling.hex(), 'ceiling recovery'
+    checked += 1
     # Determinism: one fixed request, twice, byte-identical answers.
     request = {'operation': 'split', 'secret_hex': 'cafebabe', 'threshold': 2,
         'shares': 3, 'seed': 7}
