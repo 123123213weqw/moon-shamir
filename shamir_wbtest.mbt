@@ -409,3 +409,103 @@ test "seed and password are mutually exclusive" {
   }
   assert_eq(refused, String("seed and password are mutually exclusive"))
 }
+
+///|
+fn json_shares(items : Array[Value]) -> String {
+  Json::array(items.map(fn(v) { v.to_json() })).stringify()
+}
+
+///|
+fn json_slice(items : Array[Value], count : Int) -> String {
+  let picked : Array[Value] = []
+  for i in 0..<count {
+    picked.push(items[i])
+  }
+  json_shares(picked)
+}
+
+///|
+test "reshare chains across generations with rising thresholds" {
+  // Generation 0: 2-of-4. Each generation reshare rises the threshold by
+  // one and mints more shares than the last; every generation recovers
+  // the same secret on its own quorum, and the previous generation's
+  // shares are refused next to the new ones (thresholds disagree).
+  let split = run(
+    from_json(
+      @json.parse(
+        "{\"operation\":\"split\",\"secret_hex\":\"feedc0de\",\"threshold\":2,\"shares\":4,\"seed\":900}",
+      ),
+    ),
+  )
+  let shares = match get(split, "share_list") {
+    Array(items) => items
+    _ => abort("share_list missing")
+  }
+  let mut current = shares
+  let mut threshold = 2
+  for generation in [9001, 9002, 9003] {
+    threshold = threshold + 1
+    let new_count = threshold + 2
+    let reshare = run(
+      from_json(
+        @json.parse(
+          "{\"operation\":\"reshare\",\"threshold_new\":" +
+          threshold.to_string() +
+          ",\"shares_new\":" +
+          new_count.to_string() +
+          ",\"seed\":" +
+          generation.to_string() +
+          ",\"shares\":" +
+          json_slice(current, threshold) +
+          "}",
+        ),
+      ),
+    )
+    assert_eq(get(reshare, "threshold_new"), Number(threshold.to_double()))
+    let minted = match get(reshare, "share_list") {
+      Array(items) => items
+      _ => abort("share_list missing")
+    }
+    assert_eq(minted.length(), new_count)
+    // Recovery from the first `threshold` minted shares of this generation.
+    let chosen : Array[Value] = []
+    for i in 0..<threshold {
+      chosen.push(minted[i])
+    }
+    let combine = run(
+      from_json(
+        @json.parse(
+          "{\"operation\":\"combine\",\"shares\":" +
+          json_shares(chosen) +
+          "}",
+        ),
+      ),
+    )
+    assert_eq(get(combine, "secret_hex"), String("feedc0de"))
+    assert_eq(get(combine, "verified"), Bool(true))
+    // The old generation cannot ride along: thresholds disagree now.
+    let mixed_refused = try {
+      let _ = run(
+        from_json(
+          @json.parse(
+            "{\"operation\":\"combine\",\"shares\":" +
+            json_shares([current[0], minted[1]]) +
+            "}",
+          ),
+        ),
+      )
+      false
+    } catch {
+      InputError(message) => message == "shares come from different thresholds"
+      other => {
+        let _ = other
+        false
+      }
+    }
+    assert_eq(mixed_refused, true)
+    current = minted
+  }
+  // Three generations later the secret is unchanged and the threshold
+  // has climbed from 2 to 5.
+  assert_eq(threshold, 5)
+}
