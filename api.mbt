@@ -1,6 +1,7 @@
 ///|
-/// The standard JSON boundary: one request object in, one report object out.
-/// Failures raise InputError with a plain message.
+/// The standard JSON boundary: one request object in, one report object
+/// out, for the split, combine, diagnose, verify, reshare and kdf
+/// operations. Failures raise InputError with a plain message.
 pub fn execute(request : Json) -> Json raise {
   run(from_json(request)).to_json()
 }

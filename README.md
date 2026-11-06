@@ -77,8 +77,14 @@ node _build/js/debug/build/cmd/main/main.js examples/split.json
 ## Library use
 
 `execute(Json) -> Json raise` is the standard JSON boundary; `run(Value)
--> Value raise` is the typed one. Every exported function raises
-`InputError` with a plain message.
+-> Value raise` is the typed one over the same requests. Every exported
+function raises `InputError` with a plain message. The full public
+surface is frozen in tests/api.golden and diffed on every verify run -
+besides the two entry points it is exactly: the Value tree (from_json,
+to_json, get, has, required, str, arr, num, record, fields_only), the
+error type InputError with its equality, and the SHA-256 helpers
+sha256_raw / sha256_hex that the labels build on. If a change touches
+that file, the ladder says so in the same breath.
 
 ## Documentation
 

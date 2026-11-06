@@ -1,6 +1,6 @@
 ///|
-/// A JSON-shaped semantic value. Requests and reports travel as these; object
-/// key order is never significant, and numbers are finite doubles.
+/// A JSON-shaped semantic value. Requests and reports travel as these;
+/// object key order is never significant, and numbers are finite doubles.
 pub(all) enum Value {
   Null
   Bool(Bool)
@@ -17,6 +17,7 @@ pub extend Value with Eq::{equal, not_equal}
 pub extend Value with @debug.Debug::{to_repr}
 
 ///|
+/// Convert parsed JSON into the semantic value tree.
 pub fn from_json(value : Json) -> Value {
   match value {
     Json::Null => Null
@@ -30,6 +31,7 @@ pub fn from_json(value : Json) -> Value {
 }
 
 ///|
+/// Convert a semantic value back into JSON.
 pub fn Value::to_json(self : Value) -> Json {
   match self {
     Null => Json::null()
@@ -62,6 +64,7 @@ pub impl Show for InputError with fn output(self, logger) {
 pub extend InputError with Show::{to_string, output}
 
 ///|
+/// Field access that answers Null for absent keys and non-objects.
 pub fn get(value : Value, key : String) -> Value {
   match value {
     Object(fields) => fields.get(key).unwrap_or(Null)
@@ -70,6 +73,7 @@ pub fn get(value : Value, key : String) -> Value {
 }
 
 ///|
+/// Whether the object carries the key.
 pub fn has(value : Value, key : String) -> Bool {
   match value {
     Object(fields) => fields.contains(key)
@@ -78,6 +82,7 @@ pub fn has(value : Value, key : String) -> Bool {
 }
 
 ///|
+/// The field, or a named refusal when absent.
 pub fn required(value : Value, key : String) -> Value raise InputError {
   if !has(value, key) {
     raise InputError("missing field: " + key)
@@ -86,6 +91,7 @@ pub fn required(value : Value, key : String) -> Value raise InputError {
 }
 
 ///|
+/// The string inside, or a named refusal.
 pub fn str(value : Value) -> String raise InputError {
   match value {
     String(s) => s
@@ -94,6 +100,7 @@ pub fn str(value : Value) -> String raise InputError {
 }
 
 ///|
+/// The array inside, or a named refusal.
 pub fn arr(value : Value) -> Array[Value] raise InputError {
   match value {
     Array(items) => items
@@ -102,6 +109,7 @@ pub fn arr(value : Value) -> Array[Value] raise InputError {
 }
 
 ///|
+/// The finite number inside, or a named refusal.
 pub fn num(value : Value) -> Double raise InputError {
   match value {
     Number(n) if !n.is_nan() && !n.is_inf() => n
@@ -110,6 +118,7 @@ pub fn num(value : Value) -> Double raise InputError {
 }
 
 ///|
+/// Build an object from field pairs, later keys winning.
 pub fn record(fields : Array[(String, Value)]) -> Value {
   let result : Map[String, Value] = Map([])
   for (key, value) in fields {
@@ -119,6 +128,7 @@ pub fn record(fields : Array[(String, Value)]) -> Value {
 }
 
 ///|
+/// Refuse with the offending key when anything outside `allowed` appears.
 pub fn fields_only(
   value : Value,
   allowed : Array[String],
