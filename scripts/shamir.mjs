@@ -20,10 +20,35 @@ function call(request) {
 }
 
 function parseShare(text) {
-  // Accepts the one-line form printed by split: index:threshold:digest:data
+  // Accepts the one-line form printed by split:
+  //   index:threshold:digest:encoding:data   (current)
+  //   index:threshold:digest:data            (legacy hex)
   if (!text.includes(':')) return JSON.parse(text);
-  const [index, threshold, digest, data] = text.split(':');
-  return {index: Number(index), threshold: Number(threshold), digest, data};
+  const parts = text.split(':');
+  if (parts.length === 4) {
+    const [index, threshold, digest, data] = parts;
+    return {index: Number(index), threshold: Number(threshold), digest, data};
+  }
+  const [index, threshold, digest, encoding, ...rest] = parts;
+  return {index: Number(index), threshold: Number(threshold), digest,
+    encoding, data: rest.join(':')};
+}
+
+// Words shares contain spaces, so an unquoted line arrives as several
+// argv entries. Reassemble: an argument that starts a one-line share
+// (index:threshold:8-hex-digits:) opens a share; anything else is a
+// continuation of the previous share's payload.
+function gatherShares(args) {
+  const opener = /^\d+:\d+:[0-9a-f]{8}:[a-z0-9]+:/;
+  const lines = [];
+  for (const arg of args) {
+    if (opener.test(arg) || lines.length === 0) {
+      lines.push(arg);
+    } else {
+      lines[lines.length - 1] += ' ' + arg;
+    }
+  }
+  return lines.map(parseShare);
 }
 
 const command = process.argv[2];
@@ -38,15 +63,15 @@ if (command === 'split' && (args.length >= 3 && args.length <= 5)) {
   console.log(`algorithm ${report.algorithm}  threshold ${report.threshold}` +
     `  shares ${report.shares}  digest ${report.digest}`);
   for (const share of report.share_list) {
-    console.log(`${share.index}:${share.threshold}:${share.digest}:${share.data}`);
+    console.log(`${share.index}:${share.threshold}:${share.digest}:${share.encoding}:${share.data}`);
   }
   console.log('# any ' + report.threshold + ' of the lines above recover the secret');
 } else if (command === 'combine' && args.length >= 2) {
-  const report = call({operation: 'combine', shares: args.map(parseShare)});
+  const report = call({operation: 'combine', shares: gatherShares(args)});
   console.log(`secret_hex ${report.secret_hex}`);
   console.log(`verified ${report.verified}  digest ${report.recovered_digest}`);
 } else if (command === 'diagnose' && args.length >= 2) {
-  const report = call({operation: 'diagnose', shares: args.map(parseShare)});
+  const report = call({operation: 'diagnose', shares: gatherShares(args)});
   console.log(`consistent ${report.consistent}  subsets ${report.consistent_subsets}/${report.subsets_checked}`);
   console.log(`good ${JSON.stringify(report.good)}`);
   console.log(`suspects ${JSON.stringify(report.suspects)}`);
@@ -54,7 +79,7 @@ if (command === 'split' && (args.length >= 3 && args.length <= 5)) {
 } else if (command === 'verify' && args.length >= 2) {
   const shares = args.filter((a) => a.includes(':') || a.startsWith('['));
   const known = args.filter((a) => !shares.includes(a));
-  const request = {operation: 'verify', shares: shares.map(parseShare)};
+  const request = {operation: 'verify', shares: gatherShares(shares)};
   if (known.length === 1) request.secret_hex = known[0];
   const report = call(request);
   console.log(`verified ${report.verified}  shares ${report.shares}` +
@@ -63,13 +88,13 @@ if (command === 'split' && (args.length >= 3 && args.length <= 5)) {
   // reshare <threshold_new> <shares_new> <seed> <share>...
   const [thresholdNew, sharesNew, seed, ...shareArgs] = args;
   const report = call({operation: 'reshare',
-    shares: shareArgs.map(parseShare),
+    shares: gatherShares(shareArgs),
     threshold_new: Number(thresholdNew), shares_new: Number(sharesNew),
     seed: Number(seed)});
   console.log(`threshold ${report.threshold_new}  shares ${report.shares_new}` +
     `  digest ${report.digest}  commit ${report.commit}`);
   for (const share of report.share_list) {
-    console.log(`${share.index}:${share.threshold}:${share.digest}:${share.data}`);
+    console.log(`${share.index}:${share.threshold}:${share.digest}:${share.encoding}:${share.data}`);
   }
   console.log('# any ' + report.threshold_new + ' of the lines above recover the same secret');
 } else if (command === 'kdf' && args.length >= 1 && args.length <= 3) {
