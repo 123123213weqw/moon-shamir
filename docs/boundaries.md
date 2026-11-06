@@ -1,0 +1,69 @@
+# Current boundaries
+
+What this library does and, just as deliberately, what it does not.
+Every line here is enforced or stated somewhere in the code and tests.
+
+## Scope
+
+A pure, in-memory decision core. No file I/O, no network, no persistent
+storage, no process spawning; the JSON CLI reads one request and prints
+one answer. Distributing shares - printing them, storing them,
+transmitting them - belongs to the caller.
+
+## Sizes and ranges
+
+- Secrets: hex or UTF-8 text, at most 16384 bytes.
+- Share x coordinates: 1..255, so n is at most 255 per split.
+- Threshold: 2..255, never above the share count.
+- Seeds: whole numbers 0..2^53-1 - the last integers a JSON double
+  carries exactly - or a password of at most 1024 bytes stretched by
+  PBKDF2 with 1..1000000 iterations.
+- Diagnose: at most 12 shares of threshold at most 6, so the
+  enumeration is exact (at most 924 subsets per byte position).
+- Reshare: the new threshold may rise but never fall below the old one;
+  new x coordinates avoid the old indexes, and the refusal names the
+  bound when 255 x values cannot fit.
+
+## Security honesty
+
+- The secrecy argument is information-theoretic: any k-1 shares leave
+  every secret of the same length equally likely. Nothing else carries
+  security weight.
+- The CRC-32 and SHA-256 labels are integrity checks against corruption
+  and mix-ups, not authenticators - anyone can recompute either for any
+  candidate secret. They are not MACs and are not described as them.
+- SplitMix64 makes splits reproducible from the seed. It is not a
+  security primitive; the caller owns the entropy. A password derives
+  its seed through PBKDF2-HMAC-SHA256 (1..1000000 iterations) - a real
+  stretch, but the entropy is the password's, and a weak password is a
+  weak split no matter the iteration count.
+- Seeds are as sensitive as the secret: they regenerate the shares, and
+  knowing the seed for a public share set is knowing the secret.
+- No side-channel hardening is claimed: constant-time field operations
+  are not pursued, and the word-count of a words share reveals its
+  length on sight.
+
+## Semantics pinned by tests
+
+- Any k of n shares recover the same secret - asserted exhaustively on
+  subsets and fuzzed by the oracle on random splits.
+- Below the threshold, combine refuses; there is no wrong-secret output.
+- A share set mixing thresholds, digests or commitment kinds is refused
+  by name.
+- A corrupted share is caught by the label (verified: false) and named
+  by diagnose when a quorum exists without it.
+- Reshared sets recover the same secret on their own quorums; old and
+  new shares never alias an x coordinate.
+- The same (secret, seed) reproduces the same shares on js, wasm,
+  wasm-gc and native, bit for bit.
+
+## Provenance
+
+The scheme is Shamir 1979 (with Blakley's independent formulation);
+the field is the AES one; SplitMix64 is Steele's; HMAC and PBKDF2 are
+RFC 2104 and 8018; the word-table idea follows SLIP-39's word encoding
+with a different, deterministic table. The contribution is the MoonBit
+implementation, its evidence chain, and the operations (diagnose,
+verify, reshare) wrapped around the core. See THIRD_PARTY.md.
+Competition admission and final review belong to the organizers;
+publication is not acceptance.

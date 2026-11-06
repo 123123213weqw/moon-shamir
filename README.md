@@ -80,6 +80,14 @@ node _build/js/debug/build/cmd/main/main.js examples/split.json
 -> Value raise` is the typed one. Every exported function raises
 `InputError` with a plain message.
 
+## Documentation
+
+[Design notes](docs/design.md) - the field, the polynomials, diagnose's
+quorum search, reshare's algebra, the seed story. [Usage](docs/usage.md) -
+every operation, every field, every default. [Current
+boundaries](docs/boundaries.md) - sizes, security honesty, semantics
+pinned by tests.
+
 ## Boundaries
 
 Secrets are hex, capped at 16384 bytes; share x coordinates are 1..255,
