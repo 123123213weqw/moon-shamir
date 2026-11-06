@@ -93,7 +93,7 @@ before splitting, or reproduce it years later.
 
 ## Share shapes
 
-One line on paper: `index:threshold:digest:data`, as printed by
+One line on paper: `index:threshold:digest:encoding:data`, as printed by
 `scripts/shamir.mjs` after `split` - and every encoding accepts the
 same line back through `combine`, `diagnose`, `verify` and `reshare`.
 
