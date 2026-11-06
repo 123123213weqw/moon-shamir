@@ -1,5 +1,53 @@
 # Changelog
 
+## 0.3.0 — 2026-11-07
+
+Six feature waves on top of the 0.2.0 audit operations, each landed with
+the full ladder green and the oracle extended to match.
+
+Field and speed: multiplication moved to exponent/logarithm tables over
+generator 3 (one add of logs per multiply), with the shift-and-reduce
+multiplier kept as a witness and all 65536 input pairs held equal;
+Lagrange weights are now computed once per subset instead of once per
+byte, so combine, diagnose and reshare amortize their inversions across
+the whole secret - a 16 KiB threshold-6 split runs in 0.23 s and
+combines in 0.09 s, gated by a scale check that fails past 12 s.
+
+Secrets and shares: secrets may arrive as UTF-8 text (with the text
+echoed back when the recovered bytes decode); share payloads may travel
+as hex, base64, or words - one word per byte plus a two-word checksum
+over a frozen 256-word table of four-letter dictionary words ranked by
+sha256, so a share survives paper. Encodings mix freely inside one set;
+every share names its own.
+
+Commitments: SHA-256 (FIPS 180-4, vectors pinned) joins CRC-32 as a
+choice of integrity label; the commitment rides in every share, and a
+set that mixes kinds is refused.
+
+Reshare: from k old shares, a complete fresh split is minted without
+the secret existing in memory (g = f + h, thresholds may rise but not
+fall, new x coordinates avoid the old indexes); white-box and oracle
+tests drive three-generation chains and pin that stale generations are
+refused when honest and caught by the label when forged.
+
+Seeds: a split or reshare can take a password instead of a numeric
+seed - PBKDF2-HMAC-SHA256 (RFC 8018, vectors pinned; HMAC by RFC 4231)
+with a salt and 1..1000000 iterations, first 7 bytes shifted into 53
+bits - and a standalone kdf operation pins the derivation. The response
+names how its seed was made.
+
+Verification and delivery: scripts/scale.py gates the size ceilings
+(16 KiB, diagnose at 12-of-6 exact enumeration, a reshare chain) with a
+12-second budget; two moon bench blocks time split and combine at
+1 KiB; docs/ gained design notes, a usage reference and a boundaries
+statement; the CLI grew reshare and kdf verbs; and a GitHub Actions
+workflow runs the four-backend matrix plus the entire evidence ladder
+on every push, pinned to the 0.1.20261023 toolchain shipped as a
+release asset of this repository.
+
+22 test declarations across four backends, 120 oracle check groups, 52
+malformed-input cases, 1602 physical lines of production MoonBit.
+
 ## 0.2.0 — 2026-11-04
 
 Two audit operations and a command-line tool. `diagnose` enumerates every

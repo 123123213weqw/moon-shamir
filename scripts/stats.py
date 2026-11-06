@@ -17,7 +17,7 @@ stats = {'physical': physical, 'noncomment': noncomment, 'tests': tests,
     'fixtures': fixtures, 'examples': examples}
 if '--write' in sys.argv:
     table = ('# Source and verification statistics\n\n'
-        'Snapshot date: 2026-11-04. Module version: 0.2.0.\n\n'
+        'Snapshot date: 2026-11-07. Module version: 0.3.0.\n\n'
         '| Category | Count |\n|---|---:|\n'
         f'| Owned production MoonBit physical lines (root) | {physical} |\n'
         f'| Nonblank, non-comment production lines | {noncomment} |\n'
