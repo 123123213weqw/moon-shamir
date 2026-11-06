@@ -40,6 +40,9 @@ printf 'bench: '
 moon bench --target js 2>/dev/null | grep -c ' ok$' | xargs -I{} echo '{} benchmarks ran'
 printf 'scale: '
 python3 -B scripts/scale.py | tail -1
+printf 'surface: '
+moon info
+diff pkg.generated.mbti tests/api.golden && echo 'api surface unchanged'
 printf 'stats: '
 python3 -B scripts/stats.py | tail -1
 moon fmt --check
