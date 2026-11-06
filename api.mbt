@@ -113,8 +113,8 @@ fn share_from_value(value : Value) -> Share raise InputError {
 /// pair reproduces the same shares everywhere.
 fn split_with(request : Value) -> Value raise InputError {
   fields_only(request, [
-    "operation", "secret_hex", "secret_text", "threshold", "shares", "seed",
-    "share_encoding", "commit", "password", "salt_hex", "iterations",
+    "operation", "secret_hex", "secret_text", "threshold", "shares", "seed", "share_encoding",
+    "commit", "password", "salt_hex", "iterations",
   ])
   let secret = match (get(request, "secret_hex"), get(request, "secret_text")) {
     (Null, Null) => raise InputError("missing field: secret_hex")
@@ -148,8 +148,8 @@ fn split_with(request : Value) -> Value raise InputError {
   // Doubles carry 53 significant bits, so a seed above 2^53 - 1 cannot
   // arrive intact through JSON; the bound is part of the contract.
   let seed_and_kdf = read_seed_or_password(request, [
-    "operation", "secret_hex", "secret_text", "threshold", "shares", "seed",
-    "share_encoding", "commit", "password", "salt_hex", "iterations",
+    "operation", "secret_hex", "secret_text", "threshold", "shares", "seed", "share_encoding",
+    "commit", "password", "salt_hex", "iterations",
   ])
   let seed = seed_and_kdf.0
   let commit = match get(request, "commit") {
@@ -191,7 +191,10 @@ fn split_with(request : Value) -> Value raise InputError {
     ("share_encoding", String(share_encoding)),
     ("commit", String(commit)),
     ("digest", String(digest_hex(commit_digest(secret, commit)))),
-    ("seed_derivation", String(if seed_and_kdf.1 == "" { "direct" } else { seed_and_kdf.1 })),
+    (
+      "seed_derivation",
+      String(if seed_and_kdf.1 == "" { "direct" } else { seed_and_kdf.1 }),
+    ),
     ("share_list", Array(encoded)),
   ])
 }
@@ -342,7 +345,9 @@ fn read_seed_or_password(
     Null => 10000.0
     other => num(other)
   }
-  if iterations.floor() != iterations || iterations < 1.0 || iterations > 1000000.0 {
+  if iterations.floor() != iterations ||
+    iterations < 1.0 ||
+    iterations > 1000000.0 {
     raise InputError("iterations must be a whole number 1..1000000")
   }
   let derived = pbkdf2_sha256(password, salt, iterations.to_int())
@@ -360,9 +365,7 @@ fn read_seed_or_password(
 /// Derive a split seed from a password: the same stretch split performs,
 /// offered standalone so a caller can pin the seed before splitting.
 fn kdf_with(request : Value) -> Value raise InputError {
-  fields_only(request, [
-    "operation", "password", "salt_hex", "iterations",
-  ])
+  fields_only(request, ["operation", "password", "salt_hex", "iterations"])
   let password = utf8_bytes(str(required(request, "password")))
   if password.length() == 0 {
     raise InputError("password must not be empty")
@@ -378,7 +381,9 @@ fn kdf_with(request : Value) -> Value raise InputError {
     Null => 10000.0
     other => num(other)
   }
-  if iterations.floor() != iterations || iterations < 1.0 || iterations > 1000000.0 {
+  if iterations.floor() != iterations ||
+    iterations < 1.0 ||
+    iterations > 1000000.0 {
     raise InputError("iterations must be a whole number 1..1000000")
   }
   let derived = pbkdf2_sha256(password, salt, iterations.to_int())
@@ -420,8 +425,8 @@ fn reshare_with(request : Value) -> Value raise InputError {
     raise InputError("shares_new must be a whole number 2..255")
   }
   let seed_and_kdf = read_seed_or_password(request, [
-    "operation", "shares", "threshold_new", "shares_new", "seed",
-    "share_encoding", "password", "salt_hex", "iterations",
+    "operation", "shares", "threshold_new", "shares_new", "seed", "share_encoding",
+    "password", "salt_hex", "iterations",
   ])
   let seed = seed_and_kdf.0
   let share_encoding = match get(request, "share_encoding") {

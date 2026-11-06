@@ -40,7 +40,7 @@ fn hmac_sha256(key : Array[Int32], message : Array[Int32]) -> Array[Int32] {
 fn pbkdf2_sha256(
   password : Array[Int32],
   salt : Array[Int32],
-  iterations : Int,
+  iterations : Int32,
 ) -> Array[Int32] {
   let salted : Array[Int32] = []
   for byte in salt {
@@ -72,8 +72,7 @@ test "hmac and pbkdf2 match the RFC vectors" {
   let data = utf8_bytes("what do ya want for nothing?")
   let mac = to_hex(hmac_sha256(key, data))
   assert_eq(
-    mac,
-    "5bdcc146bf60754e6a042426089575c75a003f089d2739839dec58b964ec3843",
+    mac, "5bdcc146bf60754e6a042426089575c75a003f089d2739839dec58b964ec3843",
   )
   // RFC 6070-style check for PBKDF2-HMAC-SHA256 (known vector: password
   // "password", salt "salt", 1 and 2 iterations).
