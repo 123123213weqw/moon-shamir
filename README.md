@@ -34,7 +34,10 @@ constant terms back from any k shares.
   CRC-32 label of the secret, so a corrupted or foreign share is caught
   as `verified: false`; the label is an integrity check, explicitly not
   a MAC, and the secrecy rests only on the information-theoretic
-  argument.
+  argument. With `mac_key_hex` the label upgrades to an HMAC tag that a
+  key holder can produce and no one else - a replaced share set fails
+  verification instead of passing; the key is the caller's to keep, and
+  the tag says nothing about a holder of the key.
 
 ```json
 {"operation": "split", "secret_hex": "0011223344556677", "threshold": 3,
@@ -99,7 +102,8 @@ pinned by tests.
 Secrets are hex, capped at 16384 bytes; share x coordinates are 1..255,
 so n is at most 255. Seeds travel as JSON numbers and are capped at
 2^53-1, the last integer a double carries exactly. The CRC-32 label
-detects corruption; it does not authenticate. SplitMix64 makes splits
+detects corruption; it does not authenticate; the optional HMAC tag
+authenticates against everyone but a key holder. SplitMix64 makes splits
 reproducible from the seed - treat the seed as the secret-bearing
 entropy and discard nothing you would not publish about the secret
 itself.

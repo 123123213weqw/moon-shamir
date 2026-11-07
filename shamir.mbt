@@ -259,7 +259,10 @@ test "fewer than k shares are refused outright" {
 /// consistent subset is consistent, and its secret is reported. The
 /// enumeration is exhaustive, so it is bounded: at most 12 shares of a
 /// threshold at most 6 (C(12,6) = 924 interpolations per byte position).
-fn shamir_diagnose(shares : Array[Share], mac_key : Array[Int32]) -> Value raise InputError {
+fn shamir_diagnose(
+  shares : Array[Share],
+  mac_key : Array[Int32],
+) -> Value raise InputError {
   let threshold = shares[0].threshold
   let digest = shares[0].digest
   let width = shares[0].data.length()
