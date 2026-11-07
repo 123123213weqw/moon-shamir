@@ -33,21 +33,35 @@ fn share_to_value_as(share : Share, encoding : String) -> Value {
   } else {
     String(to_hex(share.data))
   }
-  record([
+  let fields : Array[(String, Value)] = [
     ("index", Number(share.index.to_double())),
     ("threshold", Number(share.threshold.to_double())),
     ("digest", String(digest_hex(share.digest))),
     ("commit", String(share.commit)),
     ("data", payload),
     ("encoding", String(encoding)),
-  ])
+  ]
+  if share.mac != "" {
+    fields.push(("mac", String(share.mac)))
+  }
+  record(fields)
 }
 
 ///|
 fn share_from_value(value : Value) -> Share raise InputError {
   fields_only(value, [
-    "index", "threshold", "digest", "commit", "data", "encoding",
+    "index", "threshold", "digest", "commit", "mac", "data", "encoding",
   ])
+  let mac = match get(value, "mac") {
+    Null => ""
+    String(tag) => {
+      if parse_hex(tag).length() != 8 {
+        raise InputError("share mac must be 16 hex digits")
+      }
+      tag
+    }
+    _ => raise InputError("share mac must be a string of 16 hex digits")
+  }
   let commit = match get(value, "commit") {
     Null => "crc32"
     String("crc32") => "crc32"
@@ -103,6 +117,7 @@ fn share_from_value(value : Value) -> Share raise InputError {
     threshold: threshold.to_int(),
     digest: digest_of_bytes(digest_bytes),
     commit,
+    mac,
     data,
   }
 }
@@ -115,8 +130,9 @@ fn share_from_value(value : Value) -> Share raise InputError {
 fn split_with(request : Value) -> Value raise InputError {
   fields_only(request, [
     "operation", "secret_hex", "secret_text", "threshold", "shares", "seed", "share_encoding",
-    "commit", "password", "salt_hex", "iterations",
+    "commit", "password", "salt_hex", "iterations", "mac_key_hex",
   ])
+  let mac_key = read_mac_key(request)
   let secret = match (get(request, "secret_hex"), get(request, "secret_text")) {
     (Null, Null) => raise InputError("missing field: secret_hex")
     (String(hex), Null) => parse_hex(hex)
@@ -178,6 +194,7 @@ fn split_with(request : Value) -> Value raise InputError {
     shares.to_int(),
     seed.to_uint64(),
     commit,
+    mac_key,
   )
   let encoded : Array[Value] = []
   for share in generated {
@@ -191,6 +208,7 @@ fn split_with(request : Value) -> Value raise InputError {
     ("seed", Number(seed)),
     ("share_encoding", String(share_encoding)),
     ("commit", String(commit)),
+    ("authenticated", Bool(mac_key.length() > 0)),
     ("digest", String(digest_hex(commit_digest(secret, commit)))),
     (
       "seed_derivation",
@@ -207,7 +225,7 @@ fn split_with(request : Value) -> Value raise InputError {
 /// carried; verified is false when they disagree, which means a share was
 /// corrupted or does not belong to this split.
 fn combine_with(request : Value) -> Value raise InputError {
-  fields_only(request, ["operation", "shares"])
+  fields_only(request, ["operation", "shares", "mac_key_hex"])
   let raw = arr(required(request, "shares"))
   if raw.length() < 2 || raw.length() > 255 {
     raise InputError("shares must list 2..255 shares")
@@ -216,7 +234,8 @@ fn combine_with(request : Value) -> Value raise InputError {
   for entry in raw {
     parsed.push(share_from_value(entry))
   }
-  let (recovered, verified) = shamir_combine(parsed)
+  let mac_key = read_mac_key_checked(request, parsed)
+  let (recovered, verified) = shamir_combine(parsed, mac_key)
   let fields : Array[(String, Value)] = [
     ("algorithm", String("shamir-gf256")),
     ("secret_hex", String(to_hex(recovered))),
@@ -235,7 +254,7 @@ fn combine_with(request : Value) -> Value raise InputError {
 /// with a quorum, which disagree with every quorum, and whether a
 /// consistent secret exists at all.
 fn diagnose_with(request : Value) -> Value raise InputError {
-  fields_only(request, ["operation", "shares"])
+  fields_only(request, ["operation", "shares", "mac_key_hex"])
   let raw = arr(required(request, "shares"))
   if raw.length() < 2 || raw.length() > 12 {
     raise InputError("shares must list 2..12 shares")
@@ -244,7 +263,8 @@ fn diagnose_with(request : Value) -> Value raise InputError {
   for entry in raw {
     parsed.push(share_from_value(entry))
   }
-  shamir_diagnose(parsed)
+  let mac_key = read_mac_key_checked(request, parsed)
+  shamir_diagnose(parsed, mac_key)
 }
 
 ///|
@@ -254,7 +274,7 @@ fn diagnose_with(request : Value) -> Value raise InputError {
 /// equal it - a holder can prove a share set belongs to a known secret
 /// without the response carrying anything new.
 fn verify_with(request : Value) -> Value raise InputError {
-  fields_only(request, ["operation", "shares", "secret_hex"])
+  fields_only(request, ["operation", "shares", "secret_hex", "mac_key_hex"])
   let raw = arr(required(request, "shares"))
   if raw.length() < 2 || raw.length() > 255 {
     raise InputError("shares must list 2..255 shares")
@@ -272,7 +292,8 @@ fn verify_with(request : Value) -> Value raise InputError {
   for entry in raw {
     parsed.push(share_from_value(entry))
   }
-  let (recovered, verified) = shamir_combine(parsed)
+  let mac_key = read_mac_key_checked(request, parsed)
+  let (recovered, verified) = shamir_combine(parsed, mac_key)
   let matches_secret = if expected == "" {
     verified
   } else {
@@ -291,6 +312,50 @@ fn verify_with(request : Value) -> Value raise InputError {
 ///|
 fn threshold_of(shares : Array[Share]) -> Int32 {
   shares[0].threshold
+}
+
+///|
+/// A MAC key from the request: absent means no authentication; present
+/// it is 1..64 bytes of hex. Empty hex is refused - an empty key would
+/// make the mac field a public constant, silently worse than none.
+fn read_mac_key(request : Value) -> Array[Int32] raise InputError {
+  match get(request, "mac_key_hex") {
+    Null => []
+    other => {
+      let key = parse_hex(str(other))
+      if key.length() == 0 {
+        raise InputError("mac_key_hex must not be empty")
+      }
+      if key.length() > 64 {
+        raise InputError("mac_key_hex must stay within 64 bytes")
+      }
+      key
+    }
+  }
+}
+
+///|
+/// Cross-checks the request's key against the share set's mac fields:
+/// keyed shares demand a key, a key with unkeyed shares is a silent
+/// no-op that must not pass quietly, and the fields must agree.
+fn read_mac_key_checked(
+  request : Value,
+  shares : Array[Share],
+) -> Array[Int32] raise InputError {
+  let key = read_mac_key(request)
+  let mac = shares[0].mac
+  for share in shares {
+    if share.mac != mac {
+      raise InputError("shares come from different macs")
+    }
+  }
+  if mac != "" && key.length() == 0 {
+    raise InputError("shares carry a mac but no mac_key_hex was given")
+  }
+  if mac == "" && key.length() > 0 {
+    raise InputError("shares carry no mac but a mac_key_hex was given")
+  }
+  key
 }
 
 ///|

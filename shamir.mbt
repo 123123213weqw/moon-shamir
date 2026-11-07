@@ -47,7 +47,21 @@ priv struct Share {
   threshold : Int32
   digest : UInt32
   commit : String
+  mac : String
   data : Array[Int32]
+}
+
+///|
+/// The MAC tag of `bytes` under `key`: the first 16 hex digits (64 bits)
+/// of HMAC-SHA256. An empty key answers the empty string, which no share
+/// ever carries - the field is simply absent when the split had no key.
+fn mac_of(bytes : Array[Int32], key : Array[Int32]) -> String {
+  let full = hmac_sha256(key, bytes)
+  let head : Array[Int32] = []
+  for i in 0..<8 {
+    head.push(full[i])
+  }
+  to_hex(head)
 }
 
 ///|
@@ -76,9 +90,11 @@ fn shamir_split(
   shares : Int32,
   seed : UInt64,
   commit : String,
+  mac_key : Array[Int32],
 ) -> Array[Share] {
   let rng = splitmix64(seed)
   let digest = commit_digest(secret, commit)
+  let mac = if mac_key.length() > 0 { mac_of(secret, mac_key) } else { "" }
   // coefficients[b] is byte b's polynomial, constant term first.
   let coefficients : Array[Array[Int32]] = []
   for byte in secret {
@@ -94,7 +110,7 @@ fn shamir_split(
     for poly in coefficients {
       data.push(gf_eval(poly, x))
     }
-    out.push({ index: x, threshold, digest, commit, data, })
+    out.push({ index: x, threshold, digest, commit, mac, data, })
   }
   out
 }
@@ -109,10 +125,12 @@ fn shamir_split(
 /// corrupted), and the recovered bytes are then meaningless by design.
 fn shamir_combine(
   shares : Array[Share],
+  mac_key : Array[Int32],
 ) -> (Array[Int32], Bool) raise InputError {
   let threshold = shares[0].threshold
   let digest = shares[0].digest
   let commit = shares[0].commit
+  let mac = shares[0].mac
   let width = shares[0].data.length()
   for share in shares {
     if share.threshold != threshold {
@@ -123,6 +141,9 @@ fn shamir_combine(
     }
     if share.commit != commit {
       raise InputError("shares come from different commitments")
+    }
+    if share.mac != mac {
+      raise InputError("shares come from different macs")
     }
     if share.index < 1 || share.index > 255 {
       raise InputError("share index must be in 1..255")
@@ -174,7 +195,16 @@ fn shamir_combine(
     }
     recovered.push(gf_interpolate_weighted(points, weights))
   }
-  (recovered, commit_digest(recovered, commit) == digest)
+  // The MAC is the strong check: only key holders could have produced
+  // matching tags, so a mismatch means forgery or corruption. The keyed
+  // check implies the unkeyed label, so it stands alone when present.
+  let label_ok = commit_digest(recovered, commit) == digest
+  let verified = if mac == "" {
+    label_ok
+  } else {
+    label_ok && mac_of(recovered, mac_key) == mac
+  }
+  (recovered, verified)
 }
 
 ///|
@@ -182,17 +212,16 @@ test "any k of n shares recover the same secret" {
   // The algebraic law of the scheme, checked exhaustively: every k-sized
   // subset of the shares interpolates back to the same secret.
   let secret : Array[Int32] = [0, 1, 127, 128, 200, 255]
-  let shares = shamir_split(secret, 3, 5, 20261104, "crc32")
+  let shares = shamir_split(secret, 3, 5, 20261104, "crc32", [])
   assert_eq(shares.length(), 5)
   // C(5, 3) = 10 subsets, enumerated by hand over the five indices.
   for i in 0..<5 {
     for j = i + 1; j < 5; j = j + 1 {
       for k = j + 1; k < 5; k = k + 1 {
-        let (recovered, verified) = shamir_combine([
-          shares[i],
-          shares[j],
-          shares[k],
-        ])
+        let (recovered, verified) = shamir_combine(
+          [shares[i], shares[j], shares[k]],
+          [],
+        )
         assert_eq(verified, true)
         assert_eq(recovered, secret)
       }
@@ -203,11 +232,11 @@ test "any k of n shares recover the same secret" {
 ///|
 test "fewer than k shares are refused outright" {
   let secret : Array[Int32] = [9, 9, 9, 9]
-  let shares = shamir_split(secret, 3, 5, 7, "crc32")
+  let shares = shamir_split(secret, 3, 5, 7, "crc32", [])
   // The combine door is closed below the threshold: no wrong-secret
   // output exists to misuse, the refusal names what is missing.
   let refused = try {
-    let _ = shamir_combine([shares[0], shares[1]])
+    let _ = shamir_combine([shares[0], shares[1]], [])
     false
   } catch {
     InputError(message) => message == "need at least 3 shares to combine, got 2"
@@ -230,7 +259,7 @@ test "fewer than k shares are refused outright" {
 /// consistent subset is consistent, and its secret is reported. The
 /// enumeration is exhaustive, so it is bounded: at most 12 shares of a
 /// threshold at most 6 (C(12,6) = 924 interpolations per byte position).
-fn shamir_diagnose(shares : Array[Share]) -> Value raise InputError {
+fn shamir_diagnose(shares : Array[Share], mac_key : Array[Int32]) -> Value raise InputError {
   let threshold = shares[0].threshold
   let digest = shares[0].digest
   let width = shares[0].data.length()
@@ -243,6 +272,9 @@ fn shamir_diagnose(shares : Array[Share]) -> Value raise InputError {
     }
     if share.commit != shares[0].commit {
       raise InputError("shares come from different commitments")
+    }
+    if share.mac != shares[0].mac {
+      raise InputError("shares come from different macs")
     }
     if share.index < 1 || share.index > 255 {
       raise InputError("share index must be in 1..255")
@@ -310,7 +342,12 @@ fn shamir_diagnose(shares : Array[Share]) -> Value raise InputError {
       }
       candidate.push(gf_interpolate_weighted(points, weights))
     }
-    if commit_digest(candidate, shares[0].commit) == digest {
+    let label_ok = commit_digest(candidate, shares[0].commit) == digest
+    if shares[0].mac != "" && mac_of(candidate, mac_key) != shares[0].mac {
+      // A keyed quorum must also match the tag; unkeyed subsets skip.
+      continue
+    }
+    if label_ok {
       consistent_subsets += 1
       if recovered.is_empty() {
         for byte in candidate {
@@ -376,6 +413,9 @@ fn shamir_reshare(
     }
     if share.commit != shares[0].commit {
       raise InputError("shares come from different commitments")
+    }
+    if share.mac != shares[0].mac {
+      raise InputError("shares come from different macs")
     }
     if share.index < 1 || share.index > 255 {
       raise InputError("share index must be in 1..255")
@@ -474,6 +514,7 @@ fn shamir_reshare(
       threshold: threshold_new,
       digest,
       commit: shares[0].commit,
+      mac: shares[0].mac,
       data,
     })
   }

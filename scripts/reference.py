@@ -7,6 +7,7 @@ comparison below therefore pits two independent derivations against each
 other.
 """
 import hashlib as _hl
+import hmac as _hmacmod
 import itertools, json, random, re, subprocess, sys
 from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
@@ -410,6 +411,41 @@ def main():
     picked = [report["share_list"][i] for i in (0, 2, 4, 5)]
     answer = run({"operation": "combine", "shares": picked})
     assert answer["verified"] is True and answer["secret_hex"] == ceiling.hex(), 'ceiling recovery'
+    checked += 1
+    # HMAC-authenticated splits: the tag is Python's own hmac-sha256
+    # over the secret, truncated to 16 hex digits; recovery demands the
+    # key; a wrong key fails the verdict; mixing mac and no-mac shares
+    # is refused; reshare carries the tag through.
+    for iteration in range(6):
+        length = rng.randrange(1, 13)
+        secret = bytes(rng.randrange(256) for _ in range(length)).hex()
+        threshold = rng.randrange(2, 4)
+        shares = rng.randrange(threshold, 6)
+        seed = rng.randrange(0, 1 << 32)
+        key = bytes(rng.randrange(256) for _ in range(rng.randrange(1, 17))).hex()
+        report = run({"operation": "split", "secret_hex": secret,
+            "threshold": threshold, "shares": shares, "seed": seed,
+            "mac_key_hex": key})
+        want_tag = _hmacmod.new(bytes.fromhex(key), bytes.fromhex(secret), _hl.sha256).hexdigest()[:16]
+        assert report["authenticated"] is True, f"mac-flag-{iteration}"
+        for share_obj in report["share_list"]:
+            assert share_obj.get("mac") == want_tag, f"mac-tag-{iteration}"
+        picked = rng.sample(report["share_list"], threshold)
+        answer = run({"operation": "combine", "shares": picked,
+            "mac_key_hex": key})
+        assert answer["verified"] is True and answer["secret_hex"] == secret, f"mac-combine-{iteration}"
+        wrong = run({"operation": "combine", "shares": picked,
+            "mac_key_hex": "00" * 8})
+        assert wrong["verified"] is False, f"mac-wrong-{iteration}"
+        run({"operation": "combine", "shares": picked}, error=True)
+        checked += 2
+    # An unkeyed split under the same secret mixes with nothing keyed.
+    plain = run({"operation": "split", "secret_hex": "aabb", "threshold": 2,
+        "shares": 2, "seed": 3})
+    keyed = run({"operation": "split", "secret_hex": "aabb", "threshold": 2,
+        "shares": 2, "seed": 3, "mac_key_hex": "aabbccdd"})
+    run({"operation": "combine",
+        "shares": [plain["share_list"][0], keyed["share_list"][1]]}, error=True)
     checked += 1
     # Determinism: one fixed request, twice, byte-identical answers.
     request = {'operation': 'split', 'secret_hex': 'cafebabe', 'threshold': 2,

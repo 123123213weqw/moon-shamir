@@ -30,6 +30,18 @@ CASES = [
         'password': 'x' * 1025}),
     ('iterations one over ceiling', {'operation': 'kdf', 'password': 'x',
         'iterations': 1000001}),
+    ('mac key empty hex', {'operation': 'split', 'secret_hex': 'ab',
+        'threshold': 2, 'shares': 3, 'mac_key_hex': ''}),
+    ('mac key odd hex', {'operation': 'split', 'secret_hex': 'ab',
+        'threshold': 2, 'shares': 3, 'mac_key_hex': 'abc'}),
+    ('mac key over 64 bytes', {'operation': 'split', 'secret_hex': 'ab',
+        'threshold': 2, 'shares': 3, 'mac_key_hex': 'ab' * 65}),
+    ('mac tag wrong length', {'operation': 'combine', 'shares': [
+        dict(share(), mac='abcd'), dict(share(index=2), mac='abcd')]}),
+    ('keyed shares without key', {'operation': 'combine', 'shares': [
+        dict(share(), mac='a1b2c3d4e5f60718'), dict(share(index=2), mac='a1b2c3d4e5f60718')]}),
+    ('key given for unkeyed shares', {'operation': 'combine', 'shares': [
+        share(), share(index=2)], 'mac_key_hex': 'aabbccdd'}),
     ('share encoding unknown', {'operation': 'combine', 'shares': [
         dict(share(), encoding='rot13'), share(index=2)]}),
     ('share base64 junk', {'operation': 'combine', 'shares': [
