@@ -6,6 +6,7 @@
   "seed": 20261104,
   "share_encoding": "hex",
   "commit": "crc32",
+  "authenticated": false,
   "digest": "8407759b",
   "seed_derivation": "direct",
   "share_list": [

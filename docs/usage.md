@@ -22,6 +22,15 @@ significant.
   `seed` and `password`.
 - `share_encoding` - `hex` (default) | `base64` | `words`.
 - `commit` - `crc32` (default) | `sha256`.
+- `mac_key_hex` - optional, 1..64 bytes. When present every share
+  carries a `mac`: the first 16 hex digits of HMAC-SHA256 under that
+  key. Unlike the public labels, a mac cannot be forged without the
+  key - a whole share set replaced by an attacker fails verification
+  instead of passing. combine, verify and diagnose take the same
+  `mac_key_hex`; keyed shares without the key are refused (a silent
+  skip would read as success), a key with unkeyed shares is refused
+  (a silent no-op would lie), and reshare carries the mac through
+  without needing the key.
 
 The report carries `secret_bytes`, `threshold`, `shares`, `seed`,
 `share_encoding`, `commit`, the `digest` label of the secret, and
