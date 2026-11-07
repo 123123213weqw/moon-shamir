@@ -536,15 +536,14 @@ test "the full ring: 255 shares at threshold 255" {
     let _ = run(
       from_json(
         @json.parse(
-          "{\"operation\":\"combine\",\"shares\":" +
-          json_shares(short) +
-          "}",
+          "{\"operation\":\"combine\",\"shares\":" + json_shares(short) + "}",
         ),
       ),
     )
     false
   } catch {
-    InputError(message) => message == "need at least 255 shares to combine, got 254"
+    InputError(message) =>
+      message == "need at least 255 shares to combine, got 254"
     other => {
       let _ = other
       false
@@ -555,9 +554,7 @@ test "the full ring: 255 shares at threshold 255" {
   let combine = run(
     from_json(
       @json.parse(
-        "{\"operation\":\"combine\",\"shares\":" +
-        json_shares(shares) +
-        "}",
+        "{\"operation\":\"combine\",\"shares\":" + json_shares(shares) + "}",
       ),
     ),
   )

@@ -94,6 +94,7 @@ fn sha256_absorb(
 ///|
 /// The 32 raw digest bytes. HMAC needs the raw output: hashing the hex text
 /// would compute a different, incorrect construction.
+
 ///|
 /// The 32 raw SHA-256 bytes of `bytes` (each element 0..255), FIPS
 /// 180-4. Exposed because the integrity labels are public knowledge by
@@ -140,6 +141,7 @@ pub fn sha256_raw(bytes : Array[Int32]) -> Array[Int32] {
 }
 
 ///|
+
 ///|
 /// The lowercase hex SHA-256 of `bytes`.
 pub fn sha256_hex(bytes : Array[Int32]) -> String {
