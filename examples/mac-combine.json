@@ -1,0 +1,33 @@
+{
+  "operation": "combine",
+  "shares": [
+    {
+      "index": 1,
+      "threshold": 3,
+      "digest": "0fe66ea0",
+      "commit": "sha256",
+      "data": "eb64a55a6b37884b",
+      "encoding": "hex",
+      "mac": "09188c9cd667a254"
+    },
+    {
+      "index": 3,
+      "threshold": 3,
+      "digest": "0fe66ea0",
+      "commit": "sha256",
+      "data": "c1e420ce3f10527f",
+      "encoding": "hex",
+      "mac": "09188c9cd667a254"
+    },
+    {
+      "index": 5,
+      "threshold": 3,
+      "digest": "0fe66ea0",
+      "commit": "sha256",
+      "data": "565b93436c6c8ff5",
+      "encoding": "hex",
+      "mac": "09188c9cd667a254"
+    }
+  ],
+  "mac_key_hex": "aabbccdd"
+}

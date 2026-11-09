@@ -1,0 +1,6 @@
+{
+  "algorithm": "shamir-gf256",
+  "secret_hex": "0badc0defacef00d",
+  "recovered_digest": "21fe7e94",
+  "verified": true
+}

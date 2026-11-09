@@ -11,6 +11,9 @@ quietly stop being true.
 | diagnose.json | Five shares with one corrupted payload; the quorum search names the suspect and still recovers the secret. |
 | words-split.json | The same machinery with `share_encoding: "words"` - shares printed as word sequences that survive paper. |
 | words-combine.json | Words shares 1 and 3 recovering the secret through the positional decode and its checksum. |
+| mac-split.json | A keyed split: SHA-256 commitment plus an HMAC tag riding in every share. |
+| mac-combine.json | Shares 1, 3 and 5 recovering with the key - the tag verifies. |
+| fingerprint.json | Two hex shares folded to one 16-hex-digit set id. |
 
 Reproduce any of them by hand:
 

@@ -1,0 +1,9 @@
+{
+  "operation": "split",
+  "secret_hex": "0badc0defacef00d",
+  "threshold": 3,
+  "shares": 5,
+  "seed": 20261109,
+  "commit": "sha256",
+  "mac_key_hex": "aabbccdd"
+}

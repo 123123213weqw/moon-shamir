@@ -1,0 +1,6 @@
+{
+  "algorithm": "shamir-gf256",
+  "shares": 2,
+  "threshold": 2,
+  "fingerprint": "085a69df10a166c6"
+}

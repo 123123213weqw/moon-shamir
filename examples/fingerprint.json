@@ -1,0 +1,7 @@
+{
+  "operation": "fingerprint",
+  "shares": [
+    {"index": 1, "threshold": 2, "digest": "59bc5767", "commit": "crc32", "encoding": "hex", "data": "9b"},
+    {"index": 2, "threshold": 2, "digest": "59bc5767", "commit": "crc32", "encoding": "hex", "data": "c3"}
+  ]
+}
