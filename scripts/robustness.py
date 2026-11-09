@@ -30,6 +30,9 @@ CASES = [
         'password': 'x' * 1025}),
     ('iterations one over ceiling', {'operation': 'kdf', 'password': 'x',
         'iterations': 1000001}),
+    ('fingerprint no shares', {'operation': 'fingerprint', 'shares': []}),
+    ('fingerprint duplicate index', {'operation': 'fingerprint', 'shares': [
+        share(), share()]}),
     ('info share not object', {'operation': 'info', 'share': 7}),
     ('info bad hex payload', {'operation': 'info',
         'share': dict(share(), encoding='hex', data='zz')}),

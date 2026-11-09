@@ -472,6 +472,45 @@ def main():
         assert finding["checksum_ok"] is False, f'info-bad-{iteration}'
         assert finding["payload_bytes"] == length, f'info-badlen-{iteration}'
         checked += 1
+    # Fingerprints: canonical image rebuilt independently in Python,
+    # compared for order-insensitivity and flip-sensitivity.
+    def fingerprint(shares):
+        def image(s):
+            out = bytearray([s['index'] & 0xFF, s['threshold'] & 0xFF])
+            out += bytes.fromhex(s['digest'])
+            for text in (s.get('commit', 'crc32'), s.get('mac', '')):
+                raw = text.encode('utf-8')
+                out.append(len(raw) & 0xFF)
+                out += raw
+            out += bytes.fromhex(s['data'])
+            return bytes(out)
+        joined = b'\xff'.join(image(s) for s in sorted(shares, key=lambda s: s['index']))
+        return _hl.sha256(joined).hexdigest()[:16]
+
+    for iteration in range(6):
+        length = rng.randrange(1, 9)
+        secret = bytes(rng.randrange(256) for _ in range(length)).hex()
+        threshold = rng.randrange(2, 5)
+        shares = rng.randrange(threshold, 7)
+        seed = rng.randrange(0, 1 << 32)
+        report = run({"operation": "split", "secret_hex": secret,
+            "threshold": threshold, "shares": shares, "seed": seed})
+        subset = rng.sample(report["share_list"], threshold)
+        want = fingerprint(subset)
+        got = run({"operation": "fingerprint", "shares": subset})["fingerprint"]
+        assert got == want, f'fp-{iteration}: {got} vs {want}'
+        shuffled = list(subset)
+        rng.shuffle(shuffled)
+        again = run({"operation": "fingerprint", "shares": shuffled})["fingerprint"]
+        assert again == want, f'fp-order-{iteration}'
+        tampered = dict(subset[0])
+        payload = bytearray(bytes.fromhex(tampered['data']))
+        payload[0] ^= 1
+        tampered['data'] = bytes(payload).hex()
+        broken = run({"operation": "fingerprint",
+            "shares": [tampered] + subset[1:]})["fingerprint"]
+        assert broken != want, f'fp-flip-{iteration}'
+        checked += 1
     # Determinism: one fixed request, twice, byte-identical answers.
     request = {'operation': 'split', 'secret_hex': 'cafebabe', 'threshold': 2,
         'shares': 3, 'seed': 7}

@@ -97,6 +97,10 @@ if (command === 'split' && (args.length >= 3 && args.length <= 5)) {
     console.log(`${share.index}:${share.threshold}:${share.digest}:${share.encoding}:${share.data}`);
   }
   console.log('# any ' + report.threshold_new + ' of the lines above recover the same secret');
+} else if (command === 'fingerprint' && args.length >= 1) {
+  const report = call({operation: 'fingerprint', shares: gatherShares(args)});
+  console.log(`fingerprint ${report.fingerprint}  shares ${report.shares}` +
+    `  threshold ${report.threshold}`);
 } else if (command === 'info' && args.length >= 1) {
   const share = gatherShares(args)[0];
   const report = call({operation: 'info', share});
@@ -124,6 +128,7 @@ if (command === 'split' && (args.length >= 3 && args.length <= 5)) {
   console.log('  shamir.mjs reshare  <threshold-new> <shares-new> <seed> <share>...');
   console.log('  shamir.mjs kdf      <password> [salt-hex] [iterations]');
   console.log('  shamir.mjs info     <share>');
+  console.log('  shamir.mjs fingerprint <share> <share> ...');
   console.log('A share is index:threshold:digest:data or the JSON object form.');
   process.exit(2);
 }

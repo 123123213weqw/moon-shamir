@@ -36,7 +36,8 @@ node scripts/shamir.mjs combine $(echo "$LINES" | sed -n '1p;3p;5p') | grep -q '
   && W=$(grep -v '^#' /tmp/shamir_words.txt | grep ':') \
   && node scripts/shamir.mjs combine $(echo "$W" | sed -n '1p;2p') | grep -q 'secret_hex cafebabe' \
   && node scripts/shamir.mjs info $(echo "$W" | sed -n '1p') | grep -q 'checksum_ok true' \
-  && echo 'round trip passed (split/combine/diagnose/kdf/reshare/words/info)'
+  && node scripts/shamir.mjs fingerprint $(echo "$LINES" | sed -n '1p;3p;5p') | grep -q 'fingerprint [0-9a-f]\{16\}' \
+  && echo 'round trip passed (split/combine/diagnose/kdf/reshare/words/info/fingerprint)'
 printf 'bench: '
 moon bench --target js 2>/dev/null | grep -c ' ok$' | xargs -I{} echo '{} benchmarks ran'
 printf 'scale: '

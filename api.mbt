@@ -17,6 +17,7 @@ pub fn run(request : Value) -> Value raise InputError {
     String("reshare") => reshare_with(request)
     String("kdf") => kdf_with(request)
     String("info") => info_with(request)
+    String("fingerprint") => fingerprint_with(request)
     String(other) => raise InputError("unsupported operation: " + other)
     _ => raise InputError("missing field: operation")
   }
@@ -610,4 +611,27 @@ fn info_with(request : Value) -> Value raise InputError {
       ])
     }
   }
+}
+
+///|
+/// One short id for a share set - the answer to "did I transcribe these
+/// correctly" and "is this the same batch as that one". Takes any
+/// number of shares of one split (they must agree on threshold, label
+/// and commitment; order does not matter) and answers 16 hex digits.
+fn fingerprint_with(request : Value) -> Value raise InputError {
+  fields_only(request, ["operation", "shares"])
+  let raw = arr(required(request, "shares"))
+  if raw.length() < 1 || raw.length() > 255 {
+    raise InputError("shares must list 1..255 shares")
+  }
+  let parsed : Array[Share] = []
+  for entry in raw {
+    parsed.push(share_from_value(entry))
+  }
+  record([
+    ("algorithm", String("shamir-gf256")),
+    ("shares", Number(parsed.length().to_double())),
+    ("threshold", Number(parsed[0].threshold.to_double())),
+    ("fingerprint", String(shamir_fingerprint(parsed))),
+  ])
 }

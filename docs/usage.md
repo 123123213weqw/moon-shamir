@@ -89,6 +89,19 @@ password) without the secret existing in memory. New shares land on x
 coordinates no old share occupies. Old and new sets are incompatible
 by construction - destroy the old shares.
 
+## fingerprint
+
+```json
+{"operation": "fingerprint", "shares": [...]}
+```
+
+One short id - 16 hex digits - for a share set: SHA-256 over the
+canonical image of every share sorted by index. Answer the questions
+"did I transcribe these correctly" (compare against a fingerprint taken
+beforehand) and "is this the same batch as that one" without recovering
+anything. Order-insensitive by construction; a different subset of one
+split has a different fingerprint, because the set is what it describes.
+
 ## info
 
 ```json

@@ -523,3 +523,95 @@ fn shamir_reshare(
   }
   out
 }
+
+///|
+/// A canonical byte image of one share for fingerprinting: every field
+/// that identifies it, in a fixed order - index, threshold, the label
+/// bytes, the commitment and mac as utf-8 with length prefixes, and the
+/// payload. Length prefixes keep concatenation unambiguous.
+fn share_image(share : Share) -> Array[Int32] {
+  let image : Array[Int32] = [
+    share.index & 0xFF,
+    share.threshold & 0xFF,
+    ((share.digest >> 24) & 0xFFU).reinterpret_as_int(),
+    ((share.digest >> 16) & 0xFFU).reinterpret_as_int(),
+    ((share.digest >> 8) & 0xFFU).reinterpret_as_int(),
+    (share.digest & 0xFFU).reinterpret_as_int(),
+  ]
+  for text in [share.commit, share.mac] {
+    let bytes = utf8_bytes(text)
+    image.push(bytes.length() & 0xFF)
+    for byte in bytes {
+      image.push(byte & 0xFF)
+    }
+  }
+  for byte in share.data {
+    image.push(byte & 0xFF)
+  }
+  image
+}
+
+///|
+/// The fingerprint of a share set: SHA-256 over the images of the
+/// shares sorted by index, joined by a 0xFF separator that cannot
+/// appear inside a field. The first 8 bytes, 16 hex digits - short
+/// enough to compare by eye, long enough that mistyping one character
+/// of a payload changes it beyond collision. Order-insensitive by
+/// construction; two different sets of one split have different
+/// fingerprints, because the set is what it describes.
+fn shamir_fingerprint(shares : Array[Share]) -> String raise InputError {
+  if shares.length() < 1 || shares.length() > 255 {
+    raise InputError("fingerprint needs 1..255 shares")
+  }
+  let sorted : Array[Share] = []
+  for share in shares {
+    sorted.push(share)
+  }
+  sorted.sort_by(fn(a, b) { a.index - b.index })
+  for i in 1..<sorted.length() {
+    if sorted[i].index == sorted[i - 1].index {
+      raise InputError("duplicate share index: " + sorted[i].index.to_string())
+    }
+  }
+  let image : Array[Int32] = []
+  for i in 0..<sorted.length() {
+    if i > 0 {
+      image.push(0xFF)
+    }
+    for byte in share_image(sorted[i]) {
+      image.push(byte)
+    }
+  }
+  to_hex(sha256_raw(image)[:8].to_owned())
+}
+
+///|
+test "fingerprint is order-insensitive and flip-sensitive" {
+  let secret : Array[Int32] = [1, 2, 3, 4]
+  let shares = shamir_split(secret, 2, 4, 20261109, "crc32", [])
+  let a = shamir_fingerprint([shares[0], shares[2]])
+  let b = shamir_fingerprint([shares[2], shares[0]])
+  assert_eq(a, b)
+  assert_eq(a.length(), 16)
+  // A different subset of the same split has a different fingerprint.
+  let c = shamir_fingerprint([shares[0], shares[1]])
+  assert_not_eq(a, c)
+  // One flipped payload byte changes it.
+  let tampered = {
+    let copy : Array[Int32] = []
+    for byte in shares[2].data {
+      copy.push(byte)
+    }
+    copy[0] = copy[0] ^ 1
+    {
+      index: shares[2].index,
+      threshold: shares[2].threshold,
+      digest: shares[2].digest,
+      commit: shares[2].commit,
+      mac: shares[2].mac,
+      data: copy,
+    }
+  }
+  let d = shamir_fingerprint([shares[0], tampered])
+  assert_not_eq(a, d)
+}
