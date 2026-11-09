@@ -14,15 +14,15 @@ for target in js wasm wasm-gc native; do
   moon check --deny-warn --target "$target" >/dev/null
   echo "0 warnings"
   printf '%s test: ' "$target"
-  moon test --target "$target" | tail -1
+  moon test --target "$target" > /tmp/v_step.txt 2>&1 || { tail -5 /tmp/v_step.txt; exit 1; }; tail -1 /tmp/v_step.txt
 done
 moon build --target js
 printf 'fixtures: '
-node scripts/check.mjs | tail -1
+node scripts/check.mjs > /tmp/v_step.txt 2>&1 || { tail -5 /tmp/v_step.txt; exit 1; }; tail -1 /tmp/v_step.txt
 printf 'oracle: '
-python3 -B scripts/reference.py | tail -1
+python3 -B scripts/reference.py > /tmp/v_step.txt 2>&1 || { tail -5 /tmp/v_step.txt; exit 1; }; tail -1 /tmp/v_step.txt
 printf 'robustness: '
-python3 -B scripts/robustness.py | tail -1
+python3 -B scripts/robustness.py > /tmp/v_step.txt 2>&1 || { tail -5 /tmp/v_step.txt; exit 1; }; tail -1 /tmp/v_step.txt
 printf 'cli tool: '
 node scripts/shamir.mjs split 0123456789abcdef 3 5 2026 > /tmp/shamir_shares.txt
 LINES=$(grep -v '^#' /tmp/shamir_shares.txt | grep ':')
@@ -39,13 +39,13 @@ node scripts/shamir.mjs combine $(echo "$LINES" | sed -n '1p;3p;5p') | grep -q '
 printf 'bench: '
 moon bench --target js 2>/dev/null | grep -c ' ok$' | xargs -I{} echo '{} benchmarks ran'
 printf 'scale: '
-python3 -B scripts/scale.py | tail -1
+python3 -B scripts/scale.py > /tmp/v_step.txt 2>&1 || { tail -5 /tmp/v_step.txt; exit 1; }; tail -1 /tmp/v_step.txt
 printf 'messages: '
-python3 -B scripts/messages.py | tail -1
+python3 -B scripts/messages.py > /tmp/v_step.txt 2>&1 || { tail -5 /tmp/v_step.txt; exit 1; }; tail -1 /tmp/v_step.txt
 printf 'surface: '
 moon info
 diff pkg.generated.mbti tests/api.golden && echo 'api surface unchanged'
 printf 'stats: '
-python3 -B scripts/stats.py | tail -1
+python3 -B scripts/stats.py > /tmp/v_step.txt 2>&1 || { tail -5 /tmp/v_step.txt; exit 1; }; tail -1 /tmp/v_step.txt
 moon fmt --check
 echo 'Verify: every step passed'
