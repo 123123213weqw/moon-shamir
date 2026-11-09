@@ -51,5 +51,8 @@ moon info
 diff pkg.generated.mbti tests/api.golden && echo 'api surface unchanged'
 printf 'stats: '
 python3 -B scripts/stats.py > /tmp/v_step.txt 2>&1 || { tail -5 /tmp/v_step.txt; exit 1; }; tail -1 /tmp/v_step.txt
+# The surface step's moon info rewrites pkg.generated.mbti; regenerate
+# before checking formats so the check sees its own output.
+moon info >/dev/null 2>&1
 moon fmt --check
 echo 'Verify: every step passed'

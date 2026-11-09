@@ -30,6 +30,12 @@ CASES = [
         'password': 'x' * 1025}),
     ('iterations one over ceiling', {'operation': 'kdf', 'password': 'x',
         'iterations': 1000001}),
+    ('split_many empty list', {'operation': 'split_many', 'secrets': [],
+        'threshold': 2, 'shares': 3}),
+    ('split_many over 64', {'operation': 'split_many',
+        'secrets': ['ab'] * 65, 'threshold': 2, 'shares': 3}),
+    ('split_many junk entry', {'operation': 'split_many', 'secrets': ['ab', 'zz'],
+        'threshold': 2, 'shares': 3}),
     ('fingerprint no shares', {'operation': 'fingerprint', 'shares': []}),
     ('fingerprint duplicate index', {'operation': 'fingerprint', 'shares': [
         share(), share()]}),

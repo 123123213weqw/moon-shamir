@@ -18,6 +18,7 @@ pub fn run(request : Value) -> Value raise InputError {
     String("kdf") => kdf_with(request)
     String("info") => info_with(request)
     String("fingerprint") => fingerprint_with(request)
+    String("split_many") => split_many_with(request)
     String(other) => raise InputError("unsupported operation: " + other)
     _ => raise InputError("missing field: operation")
   }
@@ -633,5 +634,109 @@ fn fingerprint_with(request : Value) -> Value raise InputError {
     ("shares", Number(parsed.length().to_double())),
     ("threshold", Number(parsed[0].threshold.to_double())),
     ("fingerprint", String(shamir_fingerprint(parsed))),
+  ])
+}
+
+///|
+/// Split several secrets in one request: the same threshold, share
+/// count, encodings and key choices apply to every secret, and each
+/// gets its own seed - the request's seed (or password derivation)
+/// plus the secret's position - so the shares of secret i are exactly
+/// what a standalone split with that derived seed would answer. 1..64
+/// secrets per request.
+fn split_many_with(request : Value) -> Value raise InputError {
+  fields_only(request, [
+    "operation", "secrets", "threshold", "shares", "seed", "password",
+    "salt_hex", "iterations", "share_encoding", "commit", "mac_key_hex",
+  ])
+  let raw = arr(required(request, "secrets"))
+  if raw.length() < 1 || raw.length() > 64 {
+    raise InputError("secrets must list 1..64 secrets (hex strings)")
+  }
+  let secrets : Array[Array[Int32]] = []
+  for entry in raw {
+    let bytes = parse_hex(str(entry))
+    if bytes.is_empty() {
+      raise InputError("secret must carry at least one byte")
+    }
+    if bytes.length() > 16384 {
+      raise InputError("secret_hex must stay within 16384 bytes")
+    }
+    secrets.push(bytes)
+  }
+  let threshold = num(required(request, "threshold"))
+  if threshold.floor() != threshold || threshold < 2.0 || threshold > 255.0 {
+    raise InputError("threshold must be a whole number 2..255")
+  }
+  let shares = num(required(request, "shares"))
+  if shares.floor() != shares || shares < 2.0 || shares > 255.0 {
+    raise InputError("shares must be a whole number 2..255")
+  }
+  if shares < threshold {
+    raise InputError(
+      "shares must be at least the threshold: " + threshold.to_string(),
+    )
+  }
+  let commit = match get(request, "commit") {
+    Null => "crc32"
+    String("crc32") => "crc32"
+    String("sha256") => "sha256"
+    String(other) =>
+      raise InputError("commit must be crc32 or sha256, found: " + other)
+    _ => raise InputError("commit must be crc32 or sha256")
+  }
+  let share_encoding = match get(request, "share_encoding") {
+    Null => "hex"
+    String("hex") => "hex"
+    String("base64") => "base64"
+    String("words") => "words"
+    String(other) =>
+      raise InputError(
+        "share_encoding must be hex, base64 or words, found: " + other,
+      )
+    _ => raise InputError("share_encoding must be hex, base64 or words")
+  }
+  let mac_key = read_mac_key(request)
+  let seed_and_kdf = read_seed_or_password(request, [
+    "operation", "secrets", "threshold", "shares", "seed", "password",
+    "salt_hex", "iterations", "share_encoding", "commit", "mac_key_hex",
+  ])
+  let base_seed = seed_and_kdf.0.to_uint64()
+  let splits : Array[Value] = []
+  for i, secret in secrets {
+    // Position i joins the stream: each secret's shares are exactly a
+    // standalone split with seed_i would answer.
+    let derived = (base_seed + i.to_uint64()) & 0x1FFFFFFFFFFFFFUL
+    let generated = shamir_split(
+      secret,
+      threshold.to_int(),
+      shares.to_int(),
+      derived,
+      commit,
+      mac_key,
+    )
+    let encoded : Array[Value] = []
+    for share in generated {
+      encoded.push(share_to_value_as(share, share_encoding))
+    }
+    splits.push(
+      record([
+        ("position", Number(i.to_double())),
+        ("secret_bytes", Number(secret.length().to_double())),
+        ("digest", String(digest_hex(commit_digest(secret, commit)))),
+        ("share_list", Array(encoded)),
+      ]),
+    )
+  }
+  record([
+    ("algorithm", String("shamir-gf256")),
+    ("secrets", Number(secrets.length().to_double())),
+    ("threshold", Number(threshold)),
+    ("shares", Number(shares)),
+    ("share_encoding", String(share_encoding)),
+    ("commit", String(commit)),
+    ("authenticated", Bool(mac_key.length() > 0)),
+    ("seed_derivation", String(if seed_and_kdf.1 == "" { "direct" } else { seed_and_kdf.1 })),
+    ("splits", Array(splits)),
   ])
 }

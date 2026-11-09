@@ -621,3 +621,29 @@ test "info describes a share and its broken checksum" {
   )
   assert_eq(get(report, "checksum_ok"), Bool(false))
 }
+
+///|
+test "split_many answers exactly the per-secret splits" {
+  let batch = run(
+    from_json(
+      @json.parse(
+        "{\"operation\":\"split_many\",\"secrets\":[\"a1b2\",\"c3d4e5\"],\"threshold\":2,\"shares\":3,\"seed\":77,\"share_encoding\":\"words\"}",
+      ),
+    ),
+  )
+  let splits = match get(batch, "splits") {
+    Array(items) => items
+    _ => abort("splits missing")
+  }
+  assert_eq(splits.length(), 2)
+  // Secret 1 is a standalone split at seed 78, word-encoded.
+  let solo = run(
+    from_json(
+      @json.parse(
+        "{\"operation\":\"split\",\"secret_hex\":\"c3d4e5\",\"threshold\":2,\"shares\":3,\"seed\":78,\"share_encoding\":\"words\"}",
+      ),
+    ),
+  )
+  assert_eq(get(splits[1], "share_list"), get(solo, "share_list"))
+  assert_eq(get(splits[1], "secret_bytes"), Number(3))
+}

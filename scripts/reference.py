@@ -511,6 +511,26 @@ def main():
             "shares": [tampered] + subset[1:]})["fingerprint"]
         assert broken != want, f'fp-flip-{iteration}'
         checked += 1
+    # Batch splits: each position equals the standalone split with the
+    # seed advanced by that position, for plain and password seeds.
+    for iteration in range(4):
+        count = rng.randrange(2, 6)
+        secrets = [bytes(rng.randrange(256) for _ in range(rng.randrange(1, 9))).hex()
+            for _ in range(count)]
+        threshold = rng.randrange(2, 4)
+        shares = rng.randrange(threshold, 6)
+        seed = rng.randrange(0, 1 << 32)
+        report = run({"operation": "split_many", "secrets": secrets,
+            "threshold": threshold, "shares": shares, "seed": seed})
+        assert report["secrets"] == count, f'many-count-{iteration}'
+        for i, (secret, split_obj) in enumerate(zip(secrets, report["splits"])):
+            solo = run({"operation": "split", "secret_hex": secret,
+                "threshold": threshold, "shares": shares, "seed": seed + i})
+            assert split_obj["share_list"] == solo["share_list"], f'many-{iteration}-{i}'
+            picked = solo["share_list"][:threshold]
+            answer = run({"operation": "combine", "shares": picked})
+            assert answer["verified"] is True and answer["secret_hex"] == secret, f'many-recover-{iteration}-{i}'
+        checked += 1
     # Determinism: one fixed request, twice, byte-identical answers.
     request = {'operation': 'split', 'secret_hex': 'cafebabe', 'threshold': 2,
         'shares': 3, 'seed': 7}

@@ -38,6 +38,21 @@ The report carries `secret_bytes`, `threshold`, `shares`, `seed`,
 `threshold`, `digest`, `commit`, `data`, `encoding`. The same
 `(secret, seed)` reproduces the same shares on every backend.
 
+## split_many
+
+```json
+{"operation": "split_many", "secrets": ["aabb", "ccdd"], "threshold": 2,
+ "shares": 4, "seed": 1000}
+```
+
+Split several secrets in one request - at most 64, each hex. The
+threshold, share count, encodings, commitment and key apply to every
+secret; each gets its own seed, the request's seed (or password
+derivation) plus its position, so secret i's shares are exactly what a
+standalone split with that derived seed answers - the oracle checks
+this position-for-position. The response's `splits` array carries one
+entry per secret with its own digest and share list.
+
 ## combine
 
 ```json
