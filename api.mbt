@@ -646,8 +646,8 @@ fn fingerprint_with(request : Value) -> Value raise InputError {
 /// secrets per request.
 fn split_many_with(request : Value) -> Value raise InputError {
   fields_only(request, [
-    "operation", "secrets", "threshold", "shares", "seed", "password",
-    "salt_hex", "iterations", "share_encoding", "commit", "mac_key_hex",
+    "operation", "secrets", "threshold", "shares", "seed", "password", "salt_hex",
+    "iterations", "share_encoding", "commit", "mac_key_hex",
   ])
   let raw = arr(required(request, "secrets"))
   if raw.length() < 1 || raw.length() > 64 {
@@ -698,8 +698,8 @@ fn split_many_with(request : Value) -> Value raise InputError {
   }
   let mac_key = read_mac_key(request)
   let seed_and_kdf = read_seed_or_password(request, [
-    "operation", "secrets", "threshold", "shares", "seed", "password",
-    "salt_hex", "iterations", "share_encoding", "commit", "mac_key_hex",
+    "operation", "secrets", "threshold", "shares", "seed", "password", "salt_hex",
+    "iterations", "share_encoding", "commit", "mac_key_hex",
   ])
   let base_seed = seed_and_kdf.0.to_uint64()
   let splits : Array[Value] = []
@@ -736,7 +736,10 @@ fn split_many_with(request : Value) -> Value raise InputError {
     ("share_encoding", String(share_encoding)),
     ("commit", String(commit)),
     ("authenticated", Bool(mac_key.length() > 0)),
-    ("seed_derivation", String(if seed_and_kdf.1 == "" { "direct" } else { seed_and_kdf.1 })),
+    (
+      "seed_derivation",
+      String(if seed_and_kdf.1 == "" { "direct" } else { seed_and_kdf.1 }),
+    ),
     ("splits", Array(splits)),
   ])
 }
