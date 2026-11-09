@@ -1,0 +1,2 @@
+bench combine 1kib threshold 5 = 213550
+bench split 1kib threshold 5 = 1850000
