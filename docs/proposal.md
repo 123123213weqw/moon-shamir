@@ -4,7 +4,7 @@
 
 账号：123123213weqw。日期：2026 年 11 月 7 日。主要语言：MoonBit。许可：Apache-2.0。  
 GitHub：https://github.com/123123213weqw/moon-shamir  
-公共模块：123123213weqw/moon_shamir@0.3.0（已发布）
+公共模块：123123213weqw/moon_shamir@0.4.0（已发布）
 
 本稿供个人参考，按实际实现编写。仓库于 2026 年 11 月 7 日从 yyqdbngt 名下迁移至 123123213weqw，与注册表命名空间统一；迁移为完整提交历史的镜像推送，旧地址已删除。
 
@@ -58,7 +58,7 @@ GitHub Actions 每次推送复现同一证据链：四后端 check/test 矩阵�
 
 ## 六 使用与验收
 
-使用者 `moon add 123123213weqw/moon_shamir@0.3.0` 后调用 execute(Json)/run(Value)，或构建 JS CLI 与 shamir.mjs。复核入口即 scripts/verify.sh 的展开清单：四后端 check/test、moon bench、CLI 六动词往返、12 夹具、134 组独立 oracle、61 条畸形输入、规模门限、消息审计、API 面冻结、统计重算、fmt 检查。核心分享由 MoonBit 完成；Python 仅作独立参考，Node 只承担文件宿主与命令行包装，没有用外部密码学库替代内核算术。
+使用者 `moon add 123123213weqw/moon_shamir@0.4.0` 后调用 execute(Json)/run(Value)，或构建 JS CLI 与 shamir.mjs。复核入口即 scripts/verify.sh 的展开清单：四后端 check/test、moon bench、CLI 六动词往返、12 夹具、134 组独立 oracle、61 条畸形输入、规模门限、消息审计、API 面冻结、统计重算、fmt 检查。核心分享由 MoonBit 完成；Python 仅作独立参考，Node 只承担文件宿主与命令行包装，没有用外部密码学库替代内核算术。
 
 ## 七 当前边界与来源
 

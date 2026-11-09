@@ -1,5 +1,41 @@
 # Changelog
 
+## 0.4.0 — 2026-11-09
+
+The authenticated release. On top of 0.3.0:
+
+HMAC-authenticated shares: split (and reshare, which inherits the tag
+verbatim) accepts mac_key_hex of 1..64 bytes, and every share then
+carries a mac - the first 16 hex digits of HMAC-SHA256 under that key.
+Unlike the public labels, a mac cannot be forged without the key, so a
+share set replaced wholesale by an attacker fails verification instead
+of passing. The semantics are pinned: keyed shares without a key are
+refused, a key with unkeyed shares is refused, a wrong key yields
+verified false, and mac fields that disagree are refused. The oracle
+authenticates with Python's hmac module across random keyed splits.
+
+Frozen public surface: tests/api.golden holds the generated interface
+file and the ladder diffs it on every run - execute and run, the Value
+tree, InputError, and the SHA-256 helpers are the whole export list.
+Refusal-message style audit: 90 messages held to one style, counted in
+the stats table. Generated-input laws: four core-quickcheck properties
+(500 cases each) beside the exhaustive ones. Boundary pinning: the
+255-share full ring at threshold 255, the 16384-byte ceiling, and the
+one-past-the-end refusals for password and iteration limits.
+
+The CLI's one-line shares carry their encoding (five fields; four-part
+lines stay accepted as legacy hex) and unquoted words shares reassemble
+from argv. Two pinned words examples walk the paper-share path. And a
+real bug the proposal audit caught is fixed: the verify script piped
+every step into tail, so a failing step could not fail the run - every
+step now checks its command, and the ladder's exit code means what its
+last line says.
+
+31 test declarations (29 run as tests, 2 as bench), 134 oracle groups,
+61 malformed cases, 2252 physical lines. Proposal recalibrated to the
+recounted source.
+
+## 0.3.0
 ## 0.3.0 — 2026-11-07
 
 Six feature waves on top of the 0.2.0 audit operations, each landed with
