@@ -16,6 +16,7 @@ pub fn run(request : Value) -> Value raise InputError {
     String("verify") => verify_with(request)
     String("reshare") => reshare_with(request)
     String("kdf") => kdf_with(request)
+    String("info") => info_with(request)
     String(other) => raise InputError("unsupported operation: " + other)
     _ => raise InputError("missing field: operation")
   }
@@ -530,4 +531,83 @@ fn reshare_with(request : Value) -> Value raise InputError {
     ("share_encoding", String(share_encoding)),
     ("share_list", Array(encoded)),
   ])
+}
+
+///|
+/// Identify one share without recovering anything: the x it carries,
+/// the threshold it was minted for, the label and commitment kinds, its
+/// encoding and payload length, and - for words shares - whether the
+/// embedded checksum verifies. A bad checksum is a finding, not a
+/// refusal: info exists to describe what is in hand, including what is
+/// wrong with it.
+fn info_with(request : Value) -> Value raise InputError {
+  fields_only(request, ["operation", "share"])
+  let raw = required(request, "share")
+  // A share that parses is described from its parsed form; a words
+  // share that fails its checksum is described anyway - the failure is
+  // the finding info exists to report, not a refusal.
+  let parsed = Some(share_from_value(raw)) catch { _ => None }
+  match parsed {
+    Some(share) => {
+      let checksum_ok = match get(raw, "encoding") {
+        String("words") => {
+          let words_text = str(get(raw, "data"))
+          let pieces = words_text.split(" ").collect()
+          let words : Array[String] = []
+          for piece in pieces {
+            words.push(piece.to_owned())
+          }
+          try {
+            let decoded = mnemonic_decode(words)
+            let _ = decoded
+            true
+          } catch {
+            _ => false
+          }
+        }
+        _ => true
+      }
+      let fields : Array[(String, Value)] = [
+        ("algorithm", String("shamir-gf256")),
+        ("index", Number(share.index.to_double())),
+        ("threshold", Number(share.threshold.to_double())),
+        ("digest", String(digest_hex(share.digest))),
+        ("commit", String(share.commit)),
+        ("authenticated", Bool(share.mac != "")),
+        ("payload_bytes", Number(share.data.length().to_double())),
+        ("checksum_ok", Bool(checksum_ok)),
+      ]
+      if share.mac != "" {
+        fields.push(("mac", String(share.mac)))
+      }
+      record(fields)
+    }
+    None => {
+      // Describing a share that would not parse: fields are read as
+      // they stand, payload estimated from the word count (index,
+      // threshold, payload words, two checksum words).
+      let encoding = str(get(raw, "encoding"))
+      if encoding != "words" {
+        // Non-words shares have no embedded checksum to dispute; a
+        // parse failure there is a genuine refusal.
+        raise InputError("share could not be parsed")
+      }
+      let words_text = str(get(raw, "data"))
+      let pieces = words_text.split(" ").collect()
+      let word_count = pieces.length()
+      let payload = if word_count >= 4 { word_count - 4 } else { 0 }
+      let index = num(get(raw, "index"))
+      let threshold = num(get(raw, "threshold"))
+      record([
+        ("algorithm", String("shamir-gf256")),
+        ("index", Number(index)),
+        ("threshold", Number(threshold)),
+        ("digest", get(raw, "digest")),
+        ("commit", get(raw, "commit")),
+        ("authenticated", Bool(has(raw, "mac"))),
+        ("payload_bytes", Number(payload.to_double())),
+        ("checksum_ok", Bool(false)),
+      ])
+    }
+  }
 }

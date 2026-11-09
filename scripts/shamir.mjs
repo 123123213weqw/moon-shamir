@@ -97,6 +97,15 @@ if (command === 'split' && (args.length >= 3 && args.length <= 5)) {
     console.log(`${share.index}:${share.threshold}:${share.digest}:${share.encoding}:${share.data}`);
   }
   console.log('# any ' + report.threshold_new + ' of the lines above recover the same secret');
+} else if (command === 'info' && args.length >= 1) {
+  const share = gatherShares(args)[0];
+  const report = call({operation: 'info', share});
+  console.log(`index ${report.index}  threshold ${report.threshold}` +
+    `  payload ${report.payload_bytes}B`);
+  console.log(`digest ${report.digest}  commit ${report.commit}` +
+    `  authenticated ${report.authenticated}` +
+    (report.mac ? `  mac ${report.mac}` : ''));
+  console.log(`checksum_ok ${report.checksum_ok}`);
 } else if (command === 'kdf' && args.length >= 1 && args.length <= 3) {
   const [password, salt, iterations] = args;
   const request = {operation: 'kdf', password};
@@ -114,6 +123,7 @@ if (command === 'split' && (args.length >= 3 && args.length <= 5)) {
   console.log('  shamir.mjs verify   <share> <share> ... [secret-hex]');
   console.log('  shamir.mjs reshare  <threshold-new> <shares-new> <seed> <share>...');
   console.log('  shamir.mjs kdf      <password> [salt-hex] [iterations]');
+  console.log('  shamir.mjs info     <share>');
   console.log('A share is index:threshold:digest:data or the JSON object form.');
   process.exit(2);
 }

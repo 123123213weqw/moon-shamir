@@ -89,6 +89,18 @@ password) without the secret existing in memory. New shares land on x
 coordinates no old share occupies. Old and new sets are incompatible
 by construction - destroy the old shares.
 
+## info
+
+```json
+{"operation": "info", "share": {...}}
+```
+
+Describe one share without recovering anything: its x, threshold,
+label, commitment kind, encoding, payload length, whether it carries a
+mac, and - for words shares - whether the embedded checksum verifies. A
+bad checksum is a finding (`checksum_ok: false`), not a refusal; info
+exists to say what is in hand, including what is wrong with it.
+
 ## kdf
 
 ```json

@@ -561,3 +561,63 @@ test "the full ring: 255 shares at threshold 255" {
   assert_eq(get(combine, "secret_hex"), String("ff"))
   assert_eq(get(combine, "verified"), Bool(true))
 }
+
+///|
+test "info describes a share and its broken checksum" {
+  let split = run(
+    from_json(
+      @json.parse(
+        "{\"operation\":\"split\",\"secret_hex\":\"cafebabe\",\"threshold\":2,\"shares\":3,\"seed\":5,\"share_encoding\":\"words\"}",
+      ),
+    ),
+  )
+  let shares = match get(split, "share_list") {
+    Array(items) => items
+    _ => abort("share_list missing")
+  }
+  let info = run(
+    from_json(
+      @json.parse(
+        "{\"operation\":\"info\",\"share\":" +
+        shares[1].to_json().stringify() +
+        "}",
+      ),
+    ),
+  )
+  assert_eq(get(info, "index"), Number(2))
+  assert_eq(get(info, "threshold"), Number(2))
+  assert_eq(get(info, "payload_bytes"), Number(4))
+  assert_eq(get(info, "checksum_ok"), Bool(true))
+  assert_eq(get(info, "authenticated"), Bool(false))
+  // Flip one payload word: the checksum finding appears, no refusal.
+  let data = str(get(shares[1], "data"))
+  let words = data.split(" ").collect()
+  let corrupted : Array[String] = [
+    words[0].to_owned(),
+    words[1].to_owned(),
+    words[2].to_owned(),
+    words[3].to_owned(),
+    words[4].to_owned(),
+    "idly",
+  ]
+  for i in 6..<words.length() {
+    corrupted.push(words[i].to_owned())
+  }
+  let broken = record([
+    ("index", Number(2)),
+    ("threshold", Number(2)),
+    ("digest", get(shares[1], "digest")),
+    ("encoding", String("words")),
+    ("data", String(corrupted.join(" "))),
+  ])
+  let report = run(
+    from_json(
+      @json.parse(
+        "{\"operation\":\"info\",\"share\":" +
+        broken.to_json().stringify() +
+        "}",
+      ),
+    ),
+  )
+  assert_eq(get(report, "checksum_ok"), Bool(false))
+}

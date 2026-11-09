@@ -447,6 +447,31 @@ def main():
     run({"operation": "combine",
         "shares": [plain["share_list"][0], keyed["share_list"][1]]}, error=True)
     checked += 1
+    # info: the engine's description of a share matches what the oracle
+    # knows it to be, and a corrupted words share is a finding.
+    for iteration in range(5):
+        length = rng.randrange(1, 9)
+        secret = bytes(rng.randrange(256) for _ in range(length)).hex()
+        threshold = rng.randrange(2, 5)
+        shares = rng.randrange(threshold, 7)
+        seed = rng.randrange(0, 1 << 32)
+        report = run({"operation": "split", "secret_hex": secret,
+            "threshold": threshold, "shares": shares, "seed": seed,
+            "share_encoding": "words"})
+        pick = rng.choice(report["share_list"])
+        info = run({"operation": "info", "share": pick})
+        assert info["index"] == pick["index"], f'info-idx-{iteration}'
+        assert info["threshold"] == threshold, f'info-th-{iteration}'
+        assert info["payload_bytes"] == length, f'info-len-{iteration}'
+        assert info["checksum_ok"] is True, f'info-ok-{iteration}'
+        assert info["authenticated"] is False, f'info-auth-{iteration}'
+        words = pick["data"].split(" ")
+        words[2 + rng.randrange(length)] = word_table[0]
+        broken = dict(pick, data=" ".join(words))
+        finding = run({"operation": "info", "share": broken})
+        assert finding["checksum_ok"] is False, f'info-bad-{iteration}'
+        assert finding["payload_bytes"] == length, f'info-badlen-{iteration}'
+        checked += 1
     # Determinism: one fixed request, twice, byte-identical answers.
     request = {'operation': 'split', 'secret_hex': 'cafebabe', 'threshold': 2,
         'shares': 3, 'seed': 7}
