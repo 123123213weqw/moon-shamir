@@ -42,6 +42,8 @@ printf 'bench: '
 moon bench --target js 2>/dev/null | grep -c ' ok$' | xargs -I{} echo '{} benchmarks ran'
 printf 'baseline: '
 MOON_HOME="$HOME/.moon-latest" python3 -B scripts/baseline.py > /tmp/v_step.txt 2>&1 || { tail -5 /tmp/v_step.txt; exit 1; }; tail -1 /tmp/v_step.txt
+printf 'sizes: '
+python3 -B scripts/size.py > /tmp/v_step.txt 2>&1 || { tail -5 /tmp/v_step.txt; exit 1; }; tail -1 /tmp/v_step.txt
 printf 'scale: '
 python3 -B scripts/scale.py > /tmp/v_step.txt 2>&1 || { tail -5 /tmp/v_step.txt; exit 1; }; tail -1 /tmp/v_step.txt
 printf 'messages: '
