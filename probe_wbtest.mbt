@@ -8,6 +8,11 @@ test "regex semantics" {
   assert_true(matches("\\d+\\.\\d+", "v1.25"))
   assert_true(matches("^\\w+@\\w+\\.example$", "ops@acme.example"))
   assert_true(matches("é|键", "x键"))
-  let bad = try { ignore(matches("(unclosed", "x")); false } catch { _ => true }
+  let bad = try {
+    ignore(matches("(unclosed", "x"))
+    false
+  } catch {
+    _ => true
+  }
   assert_true(bad)
 }
