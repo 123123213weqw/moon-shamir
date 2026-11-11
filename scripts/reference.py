@@ -531,6 +531,24 @@ def main():
             answer = run({"operation": "combine", "shares": picked})
             assert answer["verified"] is True and answer["secret_hex"] == secret, f'many-recover-{iteration}-{i}'
         checked += 1
+    # HMAC key-size boundary regression: the API caps keys at 64 bytes,
+    # so the fuzz walks every interesting length it allows - including
+    # 63 and 64, the edge of the hash-then-pad branch that a fixed
+    # vector found broken once at the engine level.
+    for iteration in range(8):
+        length = rng.choice([1, 20, 40, 63, 64])
+        key = bytes(rng.randrange(256) for _ in range(length))
+        secret = bytes(rng.randrange(256) for _ in range(rng.randrange(1, 9))).hex()
+        report = run({"operation": "split", "secret_hex": secret,
+            "threshold": 2, "shares": 3, "seed": rng.randrange(1 << 32),
+            "mac_key_hex": key.hex()})
+        want_tag = _hmacmod.new(key, bytes.fromhex(secret),
+            _hl.sha256).hexdigest()[:16]
+        assert report["share_list"][0]["mac"] == want_tag, f'mac-longkey-{iteration}'
+        answer = run({"operation": "combine",
+            "shares": report["share_list"][:2], "mac_key_hex": key.hex()})
+        assert answer["verified"] is True, f'mac-longkey-recover-{iteration}'
+        checked += 1
     # Determinism: one fixed request, twice, byte-identical answers.
     request = {'operation': 'split', 'secret_hex': 'cafebabe', 'threshold': 2,
         'shares': 3, 'seed': 7}
