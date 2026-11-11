@@ -2,11 +2,11 @@
 
 ## 门限秘密分享：可验证恢复的密钥分片备份内核
 
-账号：123123213weqw。日期：2026 年 11 月 7 日。主要语言：MoonBit。许可：Apache-2.0。  
+账号：123123213weqw。日期：2026 年 11 月 11 日。主要语言：MoonBit。许可：Apache-2.0。  
 GitHub：https://github.com/123123213weqw/moon-shamir  
 公共模块：123123213weqw/moon_shamir@0.5.1（已发布）
 
-本稿供个人参考，按实际实现编写。仓库于 2026 年 11 月 7 日从 yyqdbngt 名下迁移至 123123213weqw，与注册表命名空间统一；迁移为完整提交历史的镜像推送，旧地址已删除。
+本稿供个人参考，按实际实现编写。仓库于 2026 年 11 月 7 日从 yyqdbngt 名下迁移至 123123213weqw，与注册表命名空间统一；迁移为完整提交历史的镜像推送，旧地址已删除。2026-11-11 发布 0.5.1 安全澄清版：评委会回执三项质疑（53 位种子上限、公开校验标签、低熵秘密单份枚举）全部成立并已整改，详见第三节与第七节。
 
 ## 一 项目目标与应用场景
 
@@ -18,7 +18,7 @@ Shamir 把一份高熵秘密变成 n 份份额、任意 k 份即可恢复、任�
 
 | 能力 | 实际机制 | 输出及边界 |
 |---|---|---|
-| split | 每字节一条 GF(2⁸)（AES 多项式 0x11B）随机 k−1 次多项式，份额 i 为各多项式在 x=i 处取值 | hex 或 UTF-8 文本秘密 ≤16 KiB；2≤k≤n≤255；熵由调用方种子注入 |
+| split | 每字节一条 GF(2⁸)（AES 多项式 0x11B）随机 k−1 次多项式，份额 i 为各多项式在 x=i 处取值 | hex 或 UTF-8 文本秘密 ≤16 KiB；2≤k≤n≤255；熵由调用方注入——seed_hex 全宽 64 位（数值 53 位为兼容上限）或口令 PBKDF2 派生 |
 | combine | 拉格朗日插值常数项，确定性取最小 x 坐标 | 不足 k 份直接拒绝——不存在"恢复出错值"的输出可误用 |
 | diagnose | 穷举全部 k-子集（≤12 份、k≤6，至多 C(12,6)=924 次插值） | 与每个法定人数都不一致的份额被点名——损坏份额是被定位的，不只是被怀疑 |
 | verify | 执行 combine 同款插值但不返回秘密；可选 secret_hex 断言 | 持有方可证明份额集属于已知秘密而响应不携带新信息 |
@@ -44,21 +44,23 @@ examples/diagnose.json 在五份中把第五份首字节翻转，diagnose 输出
 
 examples/words-split.json 与 words-combine.json 展示纸笔路径：份额以十二个四字母词的序列打印（词 1 是份额序号、词 2 是门限、载荷、两词校验和），取第 1、3 份的词序列交回即还原。五个示例全部由 CLI 实际执行并与钉死的期望输出比对，examples/README.md 逐个说明。
 
+examples 之外有一份负案例：scripts/lowentropy-demo.py 把六位恢复码按 3-of-5 分片后仅持一份份额，对公开标签枚举 10⁶ 候选，2.6 秒还原原码——低熵秘密被单份份额攻破的可执行证明，也是申报书一切门限主张所附条件的来源。
+
 命令行一键复现：`node scripts/shamir.mjs split <hex> 3 5 20261104` 打印一行式份额（index:threshold:digest:encoding:data），任意 k 行交回 combine 即还原；kdf、reshare、diagnose、verify 同为子命令。六个动词的往返全部纳入验证梯。
 
 ## 五 验证与实际规模
 
-29 项 MoonBit 测试在四后端全绿、--deny-warn 零告警（另有 2 项 bench 声明计时，不计测试），其中包含 3-of-5 全部 10 个 k-子集的穷举恢复律与 255 份额满环（threshold=255 的退化情形：一个子集、一份不能少）。7 个 CLI 夹具、5 个锚定示例、90 条拒绝消息经风格审计（ASCII、小写起始、无句号，拼接续段豁免）。
+34 项 MoonBit 测试在四后端全绿、--deny-warn 零告警（另有 2 项 bench 声明计时与 6 项 quickcheck 生成式性质各 300-500 例，均不计入测试数），其中包含 3-of-5 全部 10 个 k-子集的穷举恢复律与 255 份额满环（threshold=255 的退化情形：一个子集、一份不能少）。7 个 CLI 夹具与 9 个锚定示例共 16 项检查、106 条拒绝消息经风格审计（ASCII、小写起始、无句号，拼接续段豁免）。
 
-独立 Python oracle 复算 134 组检查：40 组随机分片逐份额十六进制比对（GF(2⁸) 由生成元 3 的指数/对数表第三条路径构造，SplitMix64 亦为 Python 独立重写）、每组全部 k-子集恢复（大集采样）、15 组注入单比特损坏的 diagnose 对拍（引擎与 oracle 必须点名同一嫌疑人）、10 组 reshare 独立铸币加 5 组三代链、8 组 base64 与 8 组 words 的双编码对拍、6 组口令派生（Python hashlib 的 pbkdf2_hmac）与 6 组 HMAC 认证（Python hmac 模块）的逐字节比对、种子确定性与敏感性、UTF-8 往返、拒绝路径。61 条畸形输入全部单错误对象退出 1。
+独立 Python oracle 复算 161 组检查：40 组随机分片逐份额十六进制比对（GF(2⁸) 由生成元 3 的指数/对数表第三条路径构造，SplitMix64 亦为 Python 独立重写）、每组全部 k-子集恢复（大集采样）、15 组注入单比特损坏的 diagnose 对拍（引擎与 oracle 必须点名同一嫌疑人）、10 组 reshare 独立铸币加 5 组三代链、8 组 base64 与 8 组 words 的双编码对拍、6 组口令派生（Python hashlib 的 pbkdf2_hmac）与 6 组 HMAC 认证（Python hmac 模块）的逐字节比对、6 组 HMAC 键长边界（63/64 字节贴 hash-then-pad 分支边缘）、4 组全宽 64 位种子独立重放逐份额对拍（含 >2^53 值，Python 侧从规范重放）、split_many 逐位置与单独分片等价、fingerprint 序无关与翻转敏感、info 好坏校验描述、种子确定性与敏感性、UTF-8 往返、拒绝路径。69 条畸形输入全部单错误对象退出 1。
 
-规模与性能入口：scripts/scale.py 每次验证跑 16 KiB 门限 6 的分片-恢复-验证-重分摊链（1.1 秒，预算 12 秒防退化）、diagnose 在 12 份门限 6 的穷举顶格点名坏份额；两个 moon bench 计时块钉住 1 KiB 门限 5 的 split（212 µs）与 combine（1.75 ms）；公共 API 面冻结于 tests/api.golden，每次验证 moon info 后 diff——导出面任何变动当场红。scripts/stats.py 统计：自有生产物理行 2,252 行（有效 1,892 行，11 个文件），此数字含 256 词表与 RFC 常量表，不含测试、脚本、示例与文档。
+规模与性能入口：scripts/scale.py 每次验证跑 16 KiB 门限 6 的分片-恢复-验证-重分摊链（1.1 秒，预算 12 秒防退化）、diagnose 在 12 份门限 6 的穷举顶格点名坏份额；两个 moon bench 计时块钉住 1 KiB 门限 5 的 split（212 µs）与 combine（1.75 ms）；公共 API 面冻结于 tests/api.golden，每次验证 moon info 后 diff——导出面任何变动当场红。scripts/stats.py 统计：自有生产物理行 2,634 行（有效 2,229 行，11 个文件），此数字含 256 词表与 RFC 常量表，不含测试、脚本、示例与文档。
 
 GitHub Actions 每次推送复现同一证据链：四后端 check/test 矩阵加完整梯子，MoonBit 工具链钉死为 0.1.20261023 并以本仓库 release 资产分发——声明绑定在产出它们的编译器上。
 
 ## 六 使用与验收
 
-使用者 `moon add 123123213weqw/moon_shamir@0.5.1` 后调用 execute(Json)/run(Value)，或构建 JS CLI 与 shamir.mjs。复核入口即 scripts/verify.sh 的展开清单：四后端 check/test、moon bench、CLI 六动词往返、12 夹具、134 组独立 oracle、61 条畸形输入、规模门限、消息审计、API 面冻结、统计重算、fmt 检查。核心分享由 MoonBit 完成；Python 仅作独立参考，Node 只承担文件宿主与命令行包装，没有用外部密码学库替代内核算术。
+使用者 `moon add 123123213weqw/moon_shamir@0.5.1` 后调用 execute(Json)/run(Value)，或构建 JS CLI 与 shamir.mjs。复核入口即 scripts/verify.sh 的展开清单：四后端 check/test、moon bench 与性能基线门限（超 3× 即红）、产物体积门限（超 1.5× 即红）、CLI 八动词往返、16 项夹具检查、161 组独立 oracle、69 条畸形输入、规模门限、消息审计、API 面冻结、统计重算、fmt 检查。核心分享由 MoonBit 完成；Python 仅作独立参考，Node 只承担文件宿主与命令行包装，没有用外部密码学库替代内核算术。
 
 ## 七 当前边界与来源
 
