@@ -3,7 +3,6 @@
   "secret_bytes": 8,
   "threshold": 3,
   "shares": 5,
-  "seed": 20261109,
   "share_encoding": "hex",
   "commit": "sha256",
   "authenticated": true,
@@ -55,5 +54,7 @@
       "encoding": "hex",
       "mac": "09188c9cd667a254"
     }
-  ]
+  ],
+  "seed": 20261109,
+  "seed_hex": "00000000013528f5"
 }

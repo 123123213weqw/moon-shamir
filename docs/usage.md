@@ -1,5 +1,12 @@
 # Usage
 
+> **Low-entropy secrets are breakable from a single share.** A public
+> integrity label rides in every share; a six-digit code is enumerated
+> against it in seconds (scripts/lowentropy-demo.py demonstrates). Split
+> high-entropy material only - stretch anything a human chose first.
+> Seeds must be uniform and full-width (`seed_hex`, 8 bytes from a real
+> random source). [Security model](security.md).
+
 One request object in, one report object out, over the standard JSON
 boundary `execute(Json) -> Json raise` or the typed `run(Value) -> Value
 raise`. Every failure raises `InputError` with a plain message; the CLI
@@ -16,7 +23,8 @@ significant.
 - `secret_hex` or `secret_text` - exactly one. Hex is bytes; text is
   encoded UTF-8 first. Up to 16384 bytes.
 - `threshold` 2..255, `shares` 2..255 with `shares >= threshold`.
-- `seed` - whole number 0..9007199254740991 - **or** a `password`
+- `seed` - whole number 0..9007199254740991 - or `seed_hex` (exactly
+  8 bytes, the full 64 bits a numeric field cannot carry) - **or** a `password`
   (plus optional `salt_hex`, default the library constant, and
   `iterations`, default 10000, range 1..1000000). Exactly one of
   `seed` and `password`.

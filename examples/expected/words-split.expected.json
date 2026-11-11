@@ -3,7 +3,6 @@
   "secret_bytes": 8,
   "threshold": 2,
   "shares": 3,
-  "seed": 20261107,
   "share_encoding": "words",
   "commit": "crc32",
   "authenticated": false,
@@ -34,5 +33,7 @@
       "data": "cuir blet load mane wage gnaw lasa roam mall lipa snod ogre",
       "encoding": "words"
     }
-  ]
+  ],
+  "seed": 20261107,
+  "seed_hex": "00000000013528f3"
 }

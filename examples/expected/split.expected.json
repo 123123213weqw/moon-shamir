@@ -3,7 +3,6 @@
   "secret_bytes": 16,
   "threshold": 3,
   "shares": 5,
-  "seed": 20261104,
   "share_encoding": "hex",
   "commit": "crc32",
   "authenticated": false,
@@ -50,5 +49,7 @@
       "data": "e42077bb410b28d3142aee644495ceeb",
       "encoding": "hex"
     }
-  ]
+  ],
+  "seed": 20261104,
+  "seed_hex": "00000000013528f0"
 }

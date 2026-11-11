@@ -7,14 +7,19 @@ library API.
 - Repository: [https://github.com/123123213weqw/moon-shamir](https://github.com/123123213weqw/moon-shamir)
 - License: Apache-2.0
 
-## Why
+## Why - and what this is conditional on
 
 A key that exists in one place is one accident away from being gone, and
 one leak away from being everyone's. Shamir's scheme turns a secret into
-n shares with an information-theoretic guarantee: any k shares determine
-it exactly, and any k-1 leave every possible secret equally likely - not
-computationally hard to distinguish, indistinguishable. Lose shares, keep
-the secret; steal shares below the threshold, learn nothing.
+n shares such that any k determine it and any k-1 leave it
+indistinguishable - **when the secret is high-entropy and the
+coefficient seed is uniform**. That condition is not decoration: the
+public integrity label in every share is an enumeration oracle, and a
+six-digit recovery code falls to **one** share in seconds (the
+demonstration runs in scripts/lowentropy-demo.py; see
+[the security model](docs/security.md)). Split random keys, stretch
+anything a human chose, seed with full-width `seed_hex` from a real
+random source - then the threshold guarantee is the real thing.
 
 ## What it does
 

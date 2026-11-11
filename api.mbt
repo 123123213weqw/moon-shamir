@@ -132,8 +132,8 @@ fn share_from_value(value : Value) -> Share raise InputError {
 /// pair reproduces the same shares everywhere.
 fn split_with(request : Value) -> Value raise InputError {
   fields_only(request, [
-    "operation", "secret_hex", "secret_text", "threshold", "shares", "seed", "share_encoding",
-    "commit", "password", "salt_hex", "iterations", "mac_key_hex",
+    "operation", "secret_hex", "secret_text", "threshold", "shares", "seed", "seed_hex",
+    "share_encoding", "commit", "password", "salt_hex", "iterations", "mac_key_hex",
   ])
   let mac_key = read_mac_key(request)
   let secret = match (get(request, "secret_hex"), get(request, "secret_text")) {
@@ -168,8 +168,8 @@ fn split_with(request : Value) -> Value raise InputError {
   // Doubles carry 53 significant bits, so a seed above 2^53 - 1 cannot
   // arrive intact through JSON; the bound is part of the contract.
   let seed_and_kdf = read_seed_or_password(request, [
-    "operation", "secret_hex", "secret_text", "threshold", "shares", "seed", "share_encoding",
-    "commit", "password", "salt_hex", "iterations",
+    "operation", "secret_hex", "secret_text", "threshold", "shares", "seed", "seed_hex",
+    "share_encoding", "commit", "password", "salt_hex", "iterations",
   ])
   let seed = seed_and_kdf.0
   let commit = match get(request, "commit") {
@@ -195,7 +195,7 @@ fn split_with(request : Value) -> Value raise InputError {
     secret,
     threshold.to_int(),
     shares.to_int(),
-    seed.to_uint64(),
+    seed_and_kdf.0,
     commit,
     mac_key,
   )
@@ -203,12 +203,11 @@ fn split_with(request : Value) -> Value raise InputError {
   for share in generated {
     encoded.push(share_to_value_as(share, share_encoding))
   }
-  record([
+  let fields : Array[(String, Value)] = [
     ("algorithm", String("shamir-gf256")),
     ("secret_bytes", Number(secret.length().to_double())),
     ("threshold", Number(threshold)),
     ("shares", Number(shares)),
-    ("seed", Number(seed)),
     ("share_encoding", String(share_encoding)),
     ("commit", String(commit)),
     ("authenticated", Bool(mac_key.length() > 0)),
@@ -218,7 +217,9 @@ fn split_with(request : Value) -> Value raise InputError {
       String(if seed_and_kdf.1 == "" { "direct" } else { seed_and_kdf.1 }),
     ),
     ("share_list", Array(encoded)),
-  ])
+  ]
+  append_seed_fields(fields, seed)
+  record(fields)
 }
 
 ///|
@@ -362,6 +363,28 @@ fn read_mac_key_checked(
 }
 
 ///|
+/// The seed as report fields: the numeric form only when a double
+/// carries it exactly (up to 2^53-1), and always the full-width hex -
+/// the numeric form silently lies above the double range.
+fn append_seed_fields(fields : Array[(String, Value)], seed : UInt64) -> Unit {
+  let bytes : Array[Int32] = []
+  for shift in [56, 48, 40, 32, 24, 16, 8, 0] {
+    bytes.push(((seed >> shift) & 0xFFUL).to_int())
+  }
+  fields.push(
+    (
+      "seed",
+      if seed <= 9007199254740991UL {
+        Number(seed.to_double())
+      } else {
+        Null
+      },
+    ),
+  )
+  fields.push(("seed_hex", String(to_hex(bytes))))
+}
+
+///|
 /// The seed ceiling a JSON double carries exactly.
 fn seed_max() -> Double {
   9007199254740991.0
@@ -389,14 +412,30 @@ fn read_seed(request : Value) -> Double raise InputError {
 fn read_seed_or_password(
   request : Value,
   allowed : Array[String],
-) -> (Double, String) raise InputError {
+) -> (UInt64, String) raise InputError {
   let has_password = has(request, "password")
   let has_seed = has(request, "seed")
   if has_password && has_seed {
     raise InputError("seed and password are mutually exclusive")
   }
   if !has_password {
-    return (read_seed(request), "")
+    // seed_hex carries a full 64-bit seed; the numeric seed stays for
+    // compatibility and is capped by what a double numbers exactly.
+    if has(request, "seed_hex") {
+      if has_seed {
+        raise InputError("seed and seed_hex are mutually exclusive")
+      }
+      let raw = parse_hex(str(required(request, "seed_hex")))
+      if raw.length() != 8 {
+        raise InputError("seed_hex must be exactly 8 bytes")
+      }
+      let mut value : UInt64 = 0UL
+      for byte in raw {
+        value = (value << 8) | (byte.to_uint64() & 0xFFUL)
+      }
+      return (value, "")
+    }
+    return (read_seed(request).to_uint64(), "")
   }
   fields_only(request, allowed)
   let password = utf8_bytes(str(required(request, "password")))
@@ -427,7 +466,7 @@ fn read_seed_or_password(
     seed = (seed << 8) | (derived[i].to_uint64() & 0xFFUL)
   }
   seed = seed >> 3
-  (seed.to_double(), "pbkdf2-sha256")
+  (seed, "pbkdf2-sha256")
 }
 
 ///|
@@ -461,12 +500,13 @@ fn kdf_with(request : Value) -> Value raise InputError {
     seed = (seed << 8) | (derived[i].to_uint64() & 0xFFUL)
   }
   seed = seed >> 3
-  record([
+  let report : Array[(String, Value)] = [
     ("algorithm", String("pbkdf2-sha256")),
     ("iterations", Number(iterations)),
     ("salt_hex", String(to_hex(salt))),
-    ("seed", Number(seed.to_double())),
-  ])
+  ]
+  append_seed_fields(report, seed)
+  record(report)
 }
 
 ///|
@@ -477,7 +517,8 @@ fn kdf_with(request : Value) -> Value raise InputError {
 /// one; a new x may not collide with an old share index.
 fn reshare_with(request : Value) -> Value raise InputError {
   fields_only(request, [
-    "operation", "shares", "threshold_new", "shares_new", "seed", "share_encoding",
+    "operation", "shares", "threshold_new", "shares_new", "seed", "seed_hex", "share_encoding",
+    "password", "salt_hex", "iterations",
   ])
   let raw = arr(required(request, "shares"))
   if raw.length() < 2 || raw.length() > 255 {
@@ -517,22 +558,23 @@ fn reshare_with(request : Value) -> Value raise InputError {
     parsed,
     threshold_new.to_int(),
     shares_new.to_int(),
-    seed.to_uint64(),
+    seed,
   )
   let encoded : Array[Value] = []
   for share in minted {
     encoded.push(share_to_value_as(share, share_encoding))
   }
-  record([
+  let report : Array[(String, Value)] = [
     ("algorithm", String("shamir-gf256")),
     ("threshold_new", Number(threshold_new)),
     ("shares_new", Number(shares_new)),
-    ("seed", Number(seed)),
     ("digest", String(digest_hex(minted[0].digest))),
     ("commit", String(minted[0].commit)),
     ("share_encoding", String(share_encoding)),
     ("share_list", Array(encoded)),
-  ])
+  ]
+  append_seed_fields(report, seed)
+  record(report)
 }
 
 ///|
@@ -701,7 +743,7 @@ fn split_many_with(request : Value) -> Value raise InputError {
     "operation", "secrets", "threshold", "shares", "seed", "password", "salt_hex",
     "iterations", "share_encoding", "commit", "mac_key_hex",
   ])
-  let base_seed = seed_and_kdf.0.to_uint64()
+  let base_seed = seed_and_kdf.0
   let splits : Array[Value] = []
   for i, secret in secrets {
     // Position i joins the stream: each secret's shares are exactly a

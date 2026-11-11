@@ -78,6 +78,7 @@ def crc32(data):
     return crc ^ 0xFFFFFFFF
 
 def split(secret, threshold, shares, seed, commit='crc32'):
+    # seed may be any int up to 2^64-1 (full-width seed_hex included).
     rng = SplitMix64(seed)
     polys = []
     for byte in secret:
@@ -548,6 +549,27 @@ def main():
         answer = run({"operation": "combine",
             "shares": report["share_list"][:2], "mac_key_hex": key.hex()})
         assert answer["verified"] is True, f'mac-longkey-recover-{iteration}'
+        checked += 1
+    # Full-width seeds: seed_hex at 64 bits, including values beyond
+    # the double range, replayed independently and matched share for
+    # share; the numeric seed field stays null exactly above 2^53-1.
+    for iteration in range(4):
+        seed64 = rng.getrandbits(64)
+        secret = bytes(rng.randrange(256) for _ in range(rng.randrange(1, 9))).hex()
+        threshold = rng.randrange(2, 4)
+        shares = rng.randrange(threshold, 6)
+        request = {"operation": "split", "secret_hex": secret,
+            "threshold": threshold, "shares": shares,
+            "seed_hex": f"{seed64:016x}"}
+        report = run(request)
+        assert report["seed_hex"] == f"{seed64:016x}", f'wide-hex-{iteration}'
+        if seed64 > 9007199254740991:
+            assert report["seed"] is None, f'wide-null-{iteration}'
+        want = split(bytes.fromhex(secret), threshold, shares, seed64)
+        assert report["share_list"] == want, f'wide-shares-{iteration}'
+        picked = [report["share_list"][i] for i in range(threshold)]
+        answer = run({"operation": "combine", "shares": picked})
+        assert answer["verified"] is True and answer["secret_hex"] == secret, f'wide-recover-{iteration}'
         checked += 1
     # Determinism: one fixed request, twice, byte-identical answers.
     request = {'operation': 'split', 'secret_hex': 'cafebabe', 'threshold': 2,
