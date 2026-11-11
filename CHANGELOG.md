@@ -1,5 +1,45 @@
 # Changelog
 
+## 0.5.0 — 2026-11-11
+
+Three new operations, one real bug fixed, and the delivery machinery
+hardened - on top of 0.4.0:
+
+fingerprint folds a share set into one 16-hex-digit id (SHA-256 over
+the canonical image of every share sorted by index) - "did I
+transcribe these correctly" without recovering anything, with the
+set-not-split semantics documented rather than implied. split_many
+splits up to 64 secrets in one request, each at its own derived seed
+(position i answers exactly a standalone split at seed + i, checked
+position-for-position). info describes one share in hand - x,
+threshold, labels, payload size, mac presence, and whether a words
+checksum verifies; a failed checksum is a finding (checksum_ok
+false), not a refusal.
+
+The bug: HMAC keys longer than the 64-byte block were hashed but not
+zero-padded back, so the ipad loop read past a 32-byte array - every
+key over the limit aborted. Unreachable through the API (which caps
+keys at 64 bytes) but the engine functions are public; RFC 4231's
+case-3 vector walked the branch and caught it, and the oracle now
+fuzzes the 63/64-byte edge the API does allow. All three RFC key
+shapes and the PBKDF2 4096-iteration vector are pinned.
+
+Delivery: batched interpolation exported (gf_lagrange_weights /
+gf_interpolate_weighted) with the golden surface moving in the same
+commit; bench and artifact-size baselines gate regressions (3x and
+1.5x); refusal messages are style-audited and counted (104); the
+verify ladder checks every step's exit code after a pipe bug let red
+steps print green; CONTRIBUTING records the discipline the incidents
+taught; and a whitelist .gitignore makes the unfiltered-add leak that
+briefly shipped private files structurally impossible. The ecosystem
+gap claim is re-censused: threshold secret sharing remains the only
+implementation in a registry index of 23151 entries.
+
+34 tests plus 2 bench declarations across four backends, 157 oracle
+groups, 69 malformed cases, 2590 physical lines, 16 fixture checks,
+9 pinned examples.
+
+## 0.4.0
 ## 0.4.0 — 2026-11-09
 
 The authenticated release. On top of 0.3.0:
