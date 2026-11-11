@@ -14,6 +14,7 @@ quietly stop being true.
 | mac-split.json | A keyed split: SHA-256 commitment plus an HMAC tag riding in every share. |
 | mac-combine.json | Shares 1, 3 and 5 recovering with the key - the tag verifies. |
 | fingerprint.json | Two hex shares folded to one 16-hex-digit set id. |
+| split-many.json | Three secrets split in one request, word-encoded, each at its derived seed. |
 
 Reproduce any of them by hand:
 

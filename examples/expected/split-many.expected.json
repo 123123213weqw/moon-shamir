@@ -1,0 +1,129 @@
+{
+  "algorithm": "shamir-gf256",
+  "secrets": 3,
+  "threshold": 2,
+  "shares": 4,
+  "share_encoding": "words",
+  "commit": "crc32",
+  "authenticated": false,
+  "seed_derivation": "direct",
+  "splits": [
+    {
+      "position": 0,
+      "secret_bytes": 4,
+      "digest": "8d74beb3",
+      "share_list": [
+        {
+          "index": 1,
+          "threshold": 2,
+          "digest": "8d74beb3",
+          "commit": "crc32",
+          "data": "bleb blet fand hank lasa utas haft oket",
+          "encoding": "words"
+        },
+        {
+          "index": 2,
+          "threshold": 2,
+          "digest": "8d74beb3",
+          "commit": "crc32",
+          "data": "blet blet pope tome zoic sung roke dodd",
+          "encoding": "words"
+        },
+        {
+          "index": 3,
+          "threshold": 2,
+          "digest": "8d74beb3",
+          "commit": "crc32",
+          "data": "cuir blet form veal newt aile mird ekka",
+          "encoding": "words"
+        },
+        {
+          "index": 4,
+          "threshold": 2,
+          "digest": "8d74beb3",
+          "commit": "crc32",
+          "data": "toed blet torn moly saut veen yarm sauf",
+          "encoding": "words"
+        }
+      ]
+    },
+    {
+      "position": 1,
+      "secret_bytes": 4,
+      "digest": "27d421bc",
+      "share_list": [
+        {
+          "index": 1,
+          "threshold": 2,
+          "digest": "27d421bc",
+          "commit": "crc32",
+          "data": "bleb blet gena arui cyma self cark tryp",
+          "encoding": "words"
+        },
+        {
+          "index": 2,
+          "threshold": 2,
+          "digest": "27d421bc",
+          "commit": "crc32",
+          "data": "blet blet veil male veal sowl plum pump",
+          "encoding": "words"
+        },
+        {
+          "index": 3,
+          "threshold": 2,
+          "digest": "27d421bc",
+          "commit": "crc32",
+          "data": "cuir blet cyma suds pian poil tete auld",
+          "encoding": "words"
+        },
+        {
+          "index": 4,
+          "threshold": 2,
+          "digest": "27d421bc",
+          "commit": "crc32",
+          "data": "toed blet kaik idyl tryp sapa olam coxa",
+          "encoding": "words"
+        }
+      ]
+    },
+    {
+      "position": 2,
+      "secret_bytes": 8,
+      "digest": "8ba925f7",
+      "share_list": [
+        {
+          "index": 1,
+          "threshold": 2,
+          "digest": "8ba925f7",
+          "commit": "crc32",
+          "data": "bleb blet wabe veen brig smut hawk scyt vein moly boro smee",
+          "encoding": "words"
+        },
+        {
+          "index": 2,
+          "threshold": 2,
+          "digest": "8ba925f7",
+          "commit": "crc32",
+          "data": "blet blet doli dung hazy mail sour vein ulmo echo with pant",
+          "encoding": "words"
+        },
+        {
+          "index": 3,
+          "threshold": 2,
+          "digest": "8ba925f7",
+          "commit": "crc32",
+          "data": "cuir blet youl pean wast cuir shiv buri slon gnaw buri reft",
+          "encoding": "words"
+        },
+        {
+          "index": 4,
+          "threshold": 2,
+          "digest": "8ba925f7",
+          "commit": "crc32",
+          "data": "toed blet posh rota goal yill smut eros ycie tock gnaw kyat",
+          "encoding": "words"
+        }
+      ]
+    }
+  ]
+}

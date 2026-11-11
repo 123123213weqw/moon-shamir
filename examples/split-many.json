@@ -1,0 +1,8 @@
+{
+  "operation": "split_many",
+  "secrets": ["0badc0de", "faceb00f", "0011223344556677"],
+  "threshold": 2,
+  "shares": 4,
+  "seed": 20261111,
+  "share_encoding": "words"
+}
