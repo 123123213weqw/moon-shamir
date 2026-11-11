@@ -1,6 +1,6 @@
 name = "123123213weqw/moon_shamir"
 
-version = "0.5.0"
+version = "0.5.1"
 
 readme = "README.md"
 

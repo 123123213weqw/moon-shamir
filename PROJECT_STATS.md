@@ -1,6 +1,6 @@
 # Source and verification statistics
 
-Snapshot date: 2026-11-11. Module version: 0.5.0.
+Snapshot date: 2026-11-11. Module version: 0.5.1.
 
 | Category | Count |
 |---|---:|

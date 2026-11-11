@@ -1,5 +1,29 @@
 # Changelog
 
+## 0.5.1 — 2026-11-11
+
+The security-clarification release, answering a competition review
+that was right on all three counts.
+
+seed_hex: full-width 64-bit seeds. The numeric seed field was capped
+at 53 exact bits by its JSON double carrier; seed_hex takes 8 bytes,
+the seed channel is UInt64 end to end, and the response always
+carries the exact hex while the numeric form is honestly null above
+2^53-1. The refactor caught the password-derivation path silently
+rounding through a double on its way to the same engine.
+
+The enumeration demonstration: scripts/lowentropy-demo.py splits a
+six-digit recovery code, keeps one share, and recovers the code by
+enumerating 10^6 candidates against the public integrity label in
+under three seconds - the threshold never mattered, because a public
+label is an offline verification oracle. The README's headline claim
+is now conditional (high-entropy secret, uniform full-width seed),
+usage.md opens with the warning, and docs/security.md states the
+whole threat model as attacks, demonstrations and a protection
+matrix. Low-entropy input must be stretched first; the library ships
+the kdf operation for exactly that.
+
+## 0.5.0
 ## 0.5.0 — 2026-11-11
 
 Three new operations, one real bug fixed, and the delivery machinery
