@@ -43,6 +43,33 @@ transmitting them - belongs to the caller.
   are not pursued, and the word-count of a words share reveals its
   length on sight.
 
+## The newer operations, same discipline
+
+- HMAC tags (0.4.0): they authenticate against everyone but a holder
+  of the key; the key is the caller's to keep, and a key holder can
+  mint tags for any secret - the tag says nothing about who split.
+  Keyed and unkeyed shares never mix (refused by name), and reshare
+  carries the tag without needing the key because the secret never
+  exists in memory to re-tag.
+- fingerprint: it describes a share set, not a split - a different
+  subset of the same split has a different fingerprint, by design and
+  documented in usage. It is a comparison aid, not an identity scheme;
+  nothing prevents two holders of different splits of the same secret
+  from comparing notes offline.
+- split_many: each secret's seed is the request seed plus its
+  position - the equivalence with standalone splits is the contract
+  and is tested position-for-position. A batch under one password
+  derives all seeds from one stretch; the password's entropy covers
+  every secret in the batch.
+- info: the describe mode reads fields as they stand when a words
+  share fails its checksum - payload estimated from word count,
+  checksum_ok false - while a non-words share that will not parse is
+  refused outright, since hex and base64 carry no in-band checksum to
+  dispute. info validates nothing about the secret.
+- size and bench baselines: both refresh only by an explicit --write,
+  never as a side effect of a red run; a baseline change is a
+  deliberate, reviewable act.
+
 ## Semantics pinned by tests
 
 - Any k of n shares recover the same secret - asserted exhaustively on
