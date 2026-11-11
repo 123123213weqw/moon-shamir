@@ -124,7 +124,7 @@ fn gf_interpolate_zero(points : Array[(Int32, Int32)]) -> Int32 {
 /// in hand, interpolating any number of byte positions costs k multiplies
 /// each instead of k^2 inversions each - the batch shape combine,
 /// diagnose and reshare all want.
-fn gf_lagrange_weights(
+pub fn gf_lagrange_weights(
   points : Array[(Int32, Int32)],
   at : Int32,
 ) -> Array[Int32] {
@@ -146,7 +146,7 @@ fn gf_lagrange_weights(
 ///|
 /// Interpolate with precomputed weights: sum of y_i times weight_i, all
 /// additions being XOR.
-fn gf_interpolate_weighted(
+pub fn gf_interpolate_weighted(
   points : Array[(Int32, Int32)],
   weights : Array[Int32],
 ) -> Int32 {
