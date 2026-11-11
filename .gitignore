@@ -1,3 +1,26 @@
-_build/
-.moon/
-__pycache__/
+# Whitelist mode: everything is ignored except the project's own paths.
+# An unfiltered 'git add -A' from the wrong directory once shipped the
+# whole workspace to a public repository; this file makes that class of
+# mistake structurally impossible - foreign files are ignored here even
+# if they appear next to the sources.
+/*
+!/.github
+!/cmd
+!/docs
+!/examples
+!/scripts
+!/tests
+!/.gitignore
+!/CHANGELOG.md
+!/CONTRIBUTING.md
+!/LICENSE
+!/PROJECT_STATS.md
+!/README.md
+!/THIRD_PARTY.md
+!/*.mbt
+!/*.mbti
+!/moon.mod
+!/moon.pkg
+# Build and host artifacts never travel.
+_build
+__pycache__
