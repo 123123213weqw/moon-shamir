@@ -107,6 +107,23 @@ sh scripts/verify.sh
 node _build/js/debug/build/cmd/main/main.js examples/split.json
 ```
 
+## Performance
+
+Means on the pinned toolchain (0.1.20261104, js backend, 1 KiB secret,
+threshold 5), as recorded in tests/bench.baseline and gated by
+scripts/baseline.py: the ladder fails beyond 3x, and the file refreshes
+only by an explicit --write - a deliberate, reviewable act.
+
+| Benchmark | Work per call | Mean |
+|---|---|---:|
+| split | 20 shares of a 1 KiB secret | 2.10 ms |
+| combine | k = 5 of 8 shares | 0.22 ms |
+| reshare | 5 shares re-minted as 5-of-8 | 2.82 ms |
+| fingerprint | SHA-256 over 8 share images | 4.45 ms |
+
+Artifact sizes are gated the same way (1.5x, tests/size.baseline): the
+js CLI bundle is ~572 KiB and the wasm internal-test module ~365 KiB.
+
 ## Library use
 
 `execute(Json) -> Json raise` is the standard JSON boundary; `run(Value)

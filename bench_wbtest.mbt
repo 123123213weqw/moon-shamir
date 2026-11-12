@@ -21,3 +21,21 @@ test "bench combine 1kib threshold 5" (it : @bench.T) {
     it.keep(verdict)
   })
 }
+
+///|
+test "bench reshare 1kib threshold 5" (it : @bench.T) {
+  let all = shamir_split(Array::make(1024, 7), 5, 8, 99, "crc32", [])
+  let basis : Array[Share] = []
+  for i in 0..<5 {
+    basis.push(all[i])
+  }
+  it.bench(fn() {
+    it.keep(shamir_reshare(basis, 5, 8, 20261104).length() catch { _ => 0 })
+  })
+}
+
+///|
+test "bench fingerprint 1kib threshold 5" (it : @bench.T) {
+  let all = shamir_split(Array::make(1024, 7), 5, 8, 99, "crc32", [])
+  it.bench(fn() { it.keep(shamir_fingerprint(all).length() catch { _ => 0 }) })
+}

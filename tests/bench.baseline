@@ -1,2 +1,4 @@
-bench combine 1kib threshold 5 = 213550
-bench split 1kib threshold 5 = 1850000
+bench combine 1kib threshold 5 = 215950
+bench fingerprint 1kib threshold 5 = 4450000
+bench reshare 1kib threshold 5 = 2820000
+bench split 1kib threshold 5 = 2100000
