@@ -647,3 +647,106 @@ test "split_many answers exactly the per-secret splits" {
   assert_eq(get(splits[1], "share_list"), get(solo, "share_list"))
   assert_eq(get(splits[1], "secret_bytes"), Number(3))
 }
+
+///|
+test "sort orders by index, normalizes encodings, refuses impostors" {
+  let words_split = run(
+    from_json(
+      @json.parse(
+        "{\"operation\":\"split\",\"secret_hex\":\"a1b2c3d4\",\"threshold\":3,\"shares\":5,\"seed\":42,\"share_encoding\":\"words\"}",
+      ),
+    ),
+  )
+  let hex_split = run(
+    from_json(
+      @json.parse(
+        "{\"operation\":\"split\",\"secret_hex\":\"a1b2c3d4\",\"threshold\":3,\"shares\":5,\"seed\":42}",
+      ),
+    ),
+  )
+  let hex_shares = match get(hex_split, "share_list") {
+    Array(items) => items
+    _ => abort("share_list missing")
+  }
+  let word_shares = match get(words_split, "share_list") {
+    Array(items) => items
+    _ => abort("share_list missing")
+  }
+  // A shuffled, mixed-encoding pile: words shares 5 and 2, hex share 4.
+  let shuffled = record([
+    ("operation", String("sort")),
+    ("shares", Array([word_shares[4], hex_shares[3], word_shares[1]])),
+  ])
+  let sorted = run(shuffled)
+  assert_eq(get(sorted, "shares"), Number(3))
+  assert_eq(get(sorted, "share_encoding"), String("hex"))
+  let list = match get(sorted, "share_list") {
+    Array(items) => items
+    _ => abort("share_list missing")
+  }
+  // Canonical order, uniform hex, payloads identical to the hex split.
+  assert_eq(get(list[0], "index"), Number(2))
+  assert_eq(get(list[1], "index"), Number(4))
+  assert_eq(get(list[2], "index"), Number(5))
+  assert_eq(get(list[0], "data"), get(hex_shares[1], "data"))
+  assert_eq(get(list[1], "data"), get(hex_shares[3], "data"))
+  assert_eq(get(list[2], "data"), get(hex_shares[4], "data"))
+  // Re-encoding to words is the same normalization in the other coat.
+  let as_words = run(
+    record([
+      ("operation", String("sort")),
+      ("shares", Array([hex_shares[3], hex_shares[1]])),
+      ("share_encoding", String("words")),
+    ]),
+  )
+  let words_list = match get(as_words, "share_list") {
+    Array(items) => items
+    _ => abort("share_list missing")
+  }
+  assert_eq(get(words_list[0], "data"), get(word_shares[1], "data"))
+  // A below-threshold set sorts fine - nothing is interpolated here.
+  let two = run(
+    record([
+      ("operation", String("sort")),
+      ("shares", Array([hex_shares[4], hex_shares[0]])),
+    ]),
+  )
+  assert_eq(get(two, "shares"), Number(2))
+  // The same refusal every recovering operation gives: a duplicate x.
+  let duplicated = try {
+    let _ = run(
+      record([
+        ("operation", String("sort")),
+        ("shares", Array([hex_shares[0], hex_shares[0]])),
+      ]),
+    )
+    "no error"
+  } catch {
+    InputError(message) => message
+  }
+  assert_eq(duplicated, "duplicate share index: 1")
+  // And a share from another split cannot hide inside the order.
+  let foreign = run(
+    from_json(
+      @json.parse(
+        "{\"operation\":\"split\",\"secret_hex\":\"a1b2c3d5\",\"threshold\":3,\"shares\":5,\"seed\":42}",
+      ),
+    ),
+  )
+  let foreign_shares = match get(foreign, "share_list") {
+    Array(items) => items
+    _ => abort("share_list missing")
+  }
+  let mixed = try {
+    let _ = run(
+      record([
+        ("operation", String("sort")),
+        ("shares", Array([hex_shares[0], foreign_shares[1]])),
+      ]),
+    )
+    "no error"
+  } catch {
+    InputError(message) => message
+  }
+  assert_eq(mixed, "shares come from different splits")
+}

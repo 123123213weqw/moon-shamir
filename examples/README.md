@@ -15,6 +15,7 @@ quietly stop being true.
 | mac-combine.json | Shares 1, 3 and 5 recovering with the key - the tag verifies. |
 | fingerprint.json | Two hex shares folded to one 16-hex-digit set id. |
 | split-many.json | Three secrets split in one request, word-encoded, each at its derived seed. |
+| sort.json | Shares 5, 3, 1 of the split.json split, shuffled on input; the canonical order comes back, hex-normalized. |
 
 Reproduce any of them by hand:
 

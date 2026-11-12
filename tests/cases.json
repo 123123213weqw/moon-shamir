@@ -133,5 +133,48 @@
       "share_encoding": "words",
       "secret_bytes": 1
     }
+  },
+  {
+    "name": "sort orders a shuffled below-threshold pair",
+    "request": {
+      "operation": "sort",
+      "shares": [
+        {
+          "index": 3,
+          "threshold": 2,
+          "digest": "b51d571d",
+          "data": "a8dabcf8"
+        },
+        {
+          "index": 1,
+          "threshold": 2,
+          "digest": "b51d571d",
+          "data": "1de2b875"
+        }
+      ]
+    },
+    "expected": {
+      "shares": 2,
+      "threshold": 2,
+      "share_encoding": "hex",
+      "share_list": [
+        {
+          "index": 1,
+          "threshold": 2,
+          "digest": "b51d571d",
+          "commit": "crc32",
+          "data": "1de2b875",
+          "encoding": "hex"
+        },
+        {
+          "index": 3,
+          "threshold": 2,
+          "digest": "b51d571d",
+          "commit": "crc32",
+          "data": "a8dabcf8",
+          "encoding": "hex"
+        }
+      ]
+    }
   }
 ]

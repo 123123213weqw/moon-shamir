@@ -53,6 +53,21 @@ function gatherShares(args) {
 
 const command = process.argv[2];
 const args = process.argv.slice(3);
+function usage() {
+  console.log('Usage:');
+  console.log('  shamir.mjs split    <secret-hex> <threshold> <shares> [seed]');
+  console.log('  shamir.mjs split-many <threshold> <shares> <seed> <hex> <hex> ...');
+  console.log('  shamir.mjs combine  <share> <share> ...');
+  console.log('  shamir.mjs diagnose <share> <share> ...');
+  console.log('  shamir.mjs verify   <share> <share> ... [secret-hex]');
+  console.log('  shamir.mjs reshare  <threshold-new> <shares-new> <seed> <share>...');
+  console.log('  shamir.mjs kdf      <password> [salt-hex] [iterations]');
+  console.log('  shamir.mjs info     <share>');
+  console.log('  shamir.mjs fingerprint <share> <share> ...');
+  console.log('  shamir.mjs sort     [encoding] <share> <share> ...');
+  console.log('A share is index:threshold:digest:data or the JSON object form.');
+  process.exit(2);
+}
 if (command === 'split' && (args.length >= 3 && args.length <= 5)) {
   const [hex, threshold, shares, seed, encoding] = args;
   const request = {operation: 'split', secret_hex: hex,
@@ -115,6 +130,23 @@ if (command === 'split' && (args.length >= 3 && args.length <= 5)) {
   const report = call({operation: 'fingerprint', shares: gatherShares(args)});
   console.log(`fingerprint ${report.fingerprint}  shares ${report.shares}` +
     `  threshold ${report.threshold}`);
+} else if (command === 'sort' && args.length >= 1) {
+  // sort [encoding] <share> <share> ... - canonical order, uniform payload
+  // encoding (hex by default), no recovery attempted.
+  let encoding;
+  if (!/^\d/.test(args[0]) && args[0] !== '[') {
+    encoding = args[0];
+    args = args.slice(1);
+  }
+  if (args.length < 1) { usage(); }
+  const request = {operation: 'sort', shares: gatherShares(args)};
+  if (encoding !== undefined) request.share_encoding = encoding;
+  const report = call(request);
+  console.log(`algorithm ${report.algorithm}  shares ${report.shares}` +
+    `  threshold ${report.threshold}  digest ${report.digest}`);
+  for (const share of report.share_list) {
+    console.log(`${share.index}:${share.threshold}:${share.digest}:${share.encoding}:${share.data}`);
+  }
 } else if (command === 'info' && args.length >= 1) {
   const share = gatherShares(args)[0];
   const report = call({operation: 'info', share});
@@ -134,16 +166,5 @@ if (command === 'split' && (args.length >= 3 && args.length <= 5)) {
     `  salt ${report.salt_hex}`);
   console.log(`seed ${report.seed}`);
 } else {
-  console.log('Usage:');
-  console.log('  shamir.mjs split    <secret-hex> <threshold> <shares> [seed]');
-  console.log('  shamir.mjs split-many <threshold> <shares> <seed> <hex> <hex> ...');
-  console.log('  shamir.mjs combine  <share> <share> ...');
-  console.log('  shamir.mjs diagnose <share> <share> ...');
-  console.log('  shamir.mjs verify   <share> <share> ... [secret-hex]');
-  console.log('  shamir.mjs reshare  <threshold-new> <shares-new> <seed> <share>...');
-  console.log('  shamir.mjs kdf      <password> [salt-hex] [iterations]');
-  console.log('  shamir.mjs info     <share>');
-  console.log('  shamir.mjs fingerprint <share> <share> ...');
-  console.log('A share is index:threshold:digest:data or the JSON object form.');
-  process.exit(2);
+  usage();
 }

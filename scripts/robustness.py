@@ -112,6 +112,15 @@ CASES = [
     ('reshare unknown field', {'operation': 'reshare', 'shares': [
         share(), share(index=2)], 'threshold_new': 2, 'shares_new': 3, 'wat': 1}),
     ('verify unknown field', {'operation': 'verify', 'shares': [share(), share(index=2)], 'wat': 1}),
+    ('sort no shares', {'operation': 'sort', 'shares': []}),
+    ('sort duplicate index', {'operation': 'sort', 'shares': [
+        share(), share()]}),
+    ('sort mixed thresholds', {'operation': 'sort', 'shares': [
+        share(), share(index=2, threshold=3)]}),
+    ('sort unknown encoding', {'operation': 'sort', 'shares': [
+        share(), share(index=2)], 'share_encoding': 'mime'}),
+    ('sort unknown field', {'operation': 'sort', 'shares': [
+        share(), share(index=2)], 'wat': 1}),
 ]
 
 failures = []

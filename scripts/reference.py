@@ -532,6 +532,40 @@ def main():
             answer = run({"operation": "combine", "shares": picked})
             assert answer["verified"] is True and answer["secret_hex"] == secret, f'many-recover-{iteration}-{i}'
         checked += 1
+    # Sorting: a shuffled share pile (mixed encodings included) must come
+    # back in index order with uniform payloads - the oracle re-sorts its
+    # own split output and demands share-for-share agreement, and words
+    # shares must normalize to the oracle's hex payload.
+    for iteration in range(8):
+        length = rng.randrange(1, 13)
+        secret = bytes(rng.randrange(256) for _ in range(length)).hex()
+        threshold = rng.randrange(2, 5)
+        shares = rng.randrange(threshold, 7)
+        seed = rng.randrange(0, 1 << 32)
+        made = split(bytes.fromhex(secret), threshold, shares, seed)
+        pile = rng.sample(made, rng.randrange(1, shares + 1))
+        rng.shuffle(pile)
+        report = run({"operation": "sort", "shares": pile})
+        want = sorted(pile, key=lambda s: s['index'])
+        assert report["share_list"] == want, f'sort-{iteration}'
+        assert report["shares"] == len(pile), f'sort-count-{iteration}'
+        # Words shares normalize to the same hex payload.
+        words_split = run({"operation": "split", "secret_hex": secret,
+            "threshold": threshold, "shares": shares, "seed": seed,
+            "share_encoding": "words"})
+        mixed = [words_split["share_list"][i] for i in
+                 rng.sample(range(shares), rng.randrange(1, shares + 1))]
+        rng.shuffle(mixed)
+        normalized = run({"operation": "sort", "shares": mixed})
+        for got, original in zip(
+                normalized["share_list"],
+                sorted(mixed, key=lambda s: s['index'])):
+            assert got["data"] == made[original["index"] - 1]["data"], f'sort-words-{iteration}'
+            assert got["encoding"] == "hex", f'sort-hexflag-{iteration}'
+        # A duplicate x cannot hide inside the order.
+        run({"operation": "sort", "shares": [made[0], dict(made[0])]},
+            error=True)
+        checked += 2
     # HMAC key-size boundary regression: the API caps keys at 64 bytes,
     # so the fuzz walks every interesting length it allows - including
     # 63 and 64, the edge of the hash-then-pad branch that a fixed

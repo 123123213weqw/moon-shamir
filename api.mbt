@@ -18,6 +18,7 @@ pub fn run(request : Value) -> Value raise InputError {
     String("kdf") => kdf_with(request)
     String("info") => info_with(request)
     String("fingerprint") => fingerprint_with(request)
+    String("sort") => sort_with(request)
     String("split_many") => split_many_with(request)
     String(other) => raise InputError("unsupported operation: " + other)
     _ => raise InputError("missing field: operation")
@@ -676,6 +677,80 @@ fn fingerprint_with(request : Value) -> Value raise InputError {
     ("shares", Number(parsed.length().to_double())),
     ("threshold", Number(parsed[0].threshold.to_double())),
     ("fingerprint", String(shamir_fingerprint(parsed))),
+  ])
+}
+
+///|
+/// Put a share list in canonical order: by x coordinate, ascending.
+/// Every share is parsed and the set must be one split's - the same
+/// threshold, label, commitment and mac agreement every recovering
+/// operation demands, with distinct x coordinates - but nothing is
+/// interpolated and the secret is never touched, so a set below the
+/// threshold sorts as happily as a full quorum. The output re-encodes
+/// every payload in one encoding of the caller's choosing (hex by
+/// default), so a pile of mixed-encoding shares becomes one uniform,
+/// canonically ordered list for storage or paper.
+fn sort_with(request : Value) -> Value raise InputError {
+  fields_only(request, ["operation", "shares", "share_encoding"])
+  let raw = arr(required(request, "shares"))
+  if raw.length() < 1 || raw.length() > 255 {
+    raise InputError("shares must list 1..255 shares")
+  }
+  let share_encoding = match get(request, "share_encoding") {
+    Null => "hex"
+    String("hex") => "hex"
+    String("base64") => "base64"
+    String("words") => "words"
+    String(other) =>
+      raise InputError(
+        "share_encoding must be hex, base64 or words, found: " + other,
+      )
+    _ => raise InputError("share_encoding must be hex, base64 or words")
+  }
+  let parsed : Array[Share] = []
+  for entry in raw {
+    parsed.push(share_from_value(entry))
+  }
+  let threshold = parsed[0].threshold
+  let digest = parsed[0].digest
+  let commit = parsed[0].commit
+  let mac = parsed[0].mac
+  let width = parsed[0].data.length()
+  for share in parsed {
+    if share.threshold != threshold {
+      raise InputError("shares come from different thresholds")
+    }
+    if share.digest != digest {
+      raise InputError("shares come from different splits")
+    }
+    if share.commit != commit {
+      raise InputError("shares come from different commitments")
+    }
+    if share.mac != mac {
+      raise InputError("shares come from different macs")
+    }
+    if share.data.length() != width {
+      raise InputError("shares have different lengths")
+    }
+  }
+  let sorted = shares_sorted(parsed)
+  for i in 1..<sorted.length() {
+    if sorted[i].index == sorted[i - 1].index {
+      raise InputError("duplicate share index: " + sorted[i].index.to_string())
+    }
+  }
+  let encoded : Array[Value] = []
+  for share in sorted {
+    encoded.push(share_to_value_as(share, share_encoding))
+  }
+  record([
+    ("algorithm", String("shamir-gf256")),
+    ("shares", Number(sorted.length().to_double())),
+    ("threshold", Number(threshold.to_double())),
+    ("digest", String(digest_hex(digest))),
+    ("commit", String(commit)),
+    ("share_encoding", String(share_encoding)),
+    ("share_list", Array(encoded)),
   ])
 }
 

@@ -125,6 +125,22 @@ beforehand) and "is this the same batch as that one" without recovering
 anything. Order-insensitive by construction; a different subset of one
 split has a different fingerprint, because the set is what it describes.
 
+## sort
+
+```json
+{"operation": "sort", "shares": [...], "share_encoding": "hex"}
+```
+
+Put a share list in canonical order - by `index`, ascending - without
+recovering anything. Every share is parsed and the set must be one
+split's (same `threshold`, `digest`, `commit`, mac agreement, distinct
+indexes), the same rules every recovering operation holds; a set below
+the threshold sorts as happily as a full quorum, because nothing is
+interpolated. Payloads come back in one encoding of the caller's
+choosing (`hex` default, or `base64` / `words`), so a mixed pile
+becomes a uniform, canonically ordered list for storage or paper -
+`did I transcribe these in order` answered before combine is attempted.
+
 ## info
 
 ```json
@@ -162,6 +178,7 @@ node scripts/shamir.mjs split 0011223344556677 3 5 20261104
 node scripts/shamir.mjs combine 1:3:...:... 3:3:...:... 5:3:...:...
 node scripts/shamir.mjs diagnose <shares...>
 node scripts/shamir.mjs verify <shares...> [secret-hex]
+node scripts/shamir.mjs sort [encoding] <shares...>
 ```
 
 ## Errors

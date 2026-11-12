@@ -78,6 +78,21 @@ fn commit_digest(bytes : Array[Int32], commit : String) -> UInt32 {
 }
 
 ///|
+/// A fresh copy of the share list in canonical order: by x coordinate,
+/// ascending. Every deterministic choice the engine makes - combine's
+/// quorum, reshare's basis, fingerprint's image - starts from this
+/// order, and the sort operation hands the same canonical form to the
+/// caller.
+fn shares_sorted(shares : Array[Share]) -> Array[Share] {
+  let sorted : Array[Share] = []
+  for share in shares {
+    sorted.push(share)
+  }
+  sorted.sort_by(fn(a, b) { a.index - b.index })
+  sorted
+}
+
+///|
 /// Split `secret` into n shares of which any k recover it. Each byte gets
 /// its own random polynomial of degree k-1 whose constant term is that
 /// byte; share i is the evaluation of every polynomial at x = i. Fewer
@@ -170,11 +185,7 @@ fn shamir_combine(
     )
   }
   // Deterministic choice: the lowest threshold x coordinates interpolate.
-  let sorted : Array[Share] = []
-  for share in shares {
-    sorted.push(share)
-  }
-  sorted.sort_by(fn(a, b) { a.index - b.index })
+  let sorted = shares_sorted(shares)
   let chosen : Array[Share] = []
   for i in 0..<threshold {
     chosen.push(sorted[i])
@@ -456,11 +467,7 @@ fn shamir_reshare(
     }
   }
   // Deterministic input choice: the lowest threshold x coordinates.
-  let sorted : Array[Share] = []
-  for share in shares {
-    sorted.push(share)
-  }
-  sorted.sort_by(fn(a, b) { a.index - b.index })
+  let sorted = shares_sorted(shares)
   let basis : Array[Share] = []
   for i in 0..<threshold {
     basis.push(sorted[i])
@@ -563,11 +570,7 @@ fn shamir_fingerprint(shares : Array[Share]) -> String raise InputError {
   if shares.length() < 1 || shares.length() > 255 {
     raise InputError("fingerprint needs 1..255 shares")
   }
-  let sorted : Array[Share] = []
-  for share in shares {
-    sorted.push(share)
-  }
-  sorted.sort_by(fn(a, b) { a.index - b.index })
+  let sorted = shares_sorted(shares)
   for i in 1..<sorted.length() {
     if sorted[i].index == sorted[i - 1].index {
       raise InputError("duplicate share index: " + sorted[i].index.to_string())

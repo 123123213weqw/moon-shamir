@@ -1,0 +1,34 @@
+{
+  "algorithm": "shamir-gf256",
+  "shares": 3,
+  "threshold": 3,
+  "digest": "8407759b",
+  "commit": "crc32",
+  "share_encoding": "hex",
+  "share_list": [
+    {
+      "index": 1,
+      "threshold": 3,
+      "digest": "8407759b",
+      "commit": "crc32",
+      "data": "89ecf44f638ee2044c2b74a3c06be26e",
+      "encoding": "hex"
+    },
+    {
+      "index": 3,
+      "threshold": 3,
+      "digest": "8407759b",
+      "commit": "crc32",
+      "data": "ee706ac918f42ae243f37cd9eeed0905",
+      "encoding": "hex"
+    },
+    {
+      "index": 5,
+      "threshold": 3,
+      "digest": "8407759b",
+      "commit": "crc32",
+      "data": "e42077bb410b28d3142aee644495ceeb",
+      "encoding": "hex"
+    }
+  ]
+}
