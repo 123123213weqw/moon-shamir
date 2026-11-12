@@ -20,6 +20,8 @@ transmitting them - belongs to the caller.
   PBKDF2 with 1..1000000 iterations.
 - Diagnose: at most 12 shares of threshold at most 6, so the
   enumeration is exact (at most 924 subsets per byte position).
+- sort and check: 1..255 shares, the same range fingerprint accepts -
+  a single share is a valid question for all three.
 - Reshare: the new threshold may rise but never fall below the old one;
   new x coordinates avoid the old indexes, and the refusal names the
   bound when 255 x values cannot fit.
@@ -66,6 +68,24 @@ transmitting them - belongs to the caller.
   checksum_ok false - while a non-words share that will not parse is
   refused outright, since hex and base64 carry no in-band checksum to
   dispute. info validates nothing about the secret.
+- sort: it canonicalizes, it does not verify. The one-split agreement
+  is checked and a words payload must decode (its checksum included -
+  a bad one is a refusal here, unlike info's finding mode), but no
+  interpolation runs: a corrupted hex or base64 payload that still
+  parses sorts happily, and membership is claimed only as far as the
+  label fields assert. The output re-encodes every payload (hex by
+  default), so sorting trades payload spellings, never payload bytes.
+- check: the gap counts consistent shares, not correct ones - no
+  interpolation runs, so a corrupted payload that still parses counts
+  toward readiness and readiness is not a recovery verdict. A single
+  share is accepted (combine demands two): "how far is the quorum" is
+  askable below the door, and the report carries nothing
+  secret-shaped.
+- split_with_defaults: the shortcut fixes every optional choice at
+  its default, and seed 0 is a public constant - the constructor
+  exists so the common call cannot misspell a field name, not to make
+  a constant seed safe. It answers exactly what run answers; there is
+  no second code path to diverge.
 - size and bench baselines: both refresh only by an explicit --write,
   never as a side effect of a red run; a baseline change is a
   deliberate, reviewable act.
@@ -81,6 +101,13 @@ transmitting them - belongs to the caller.
   by diagnose when a quorum exists without it.
 - Reshared sets recover the same secret on their own quorums; old and
   new shares never alias an x coordinate.
+- sort returns the canonical index order from any input order and any
+  mix of payload encodings, re-encoded uniformly; duplicate and
+  foreign shares are refused by the same names combine uses, and a
+  set below the threshold sorts as happily as a quorum.
+- check's gap is the threshold minus the shares in hand, floored at
+  zero; ready lands exactly at the quorum, a single share is a valid
+  question, and the report carries no secret-shaped field.
 - The same (secret, seed) reproduces the same shares on js, wasm,
   wasm-gc and native, bit for bit.
 

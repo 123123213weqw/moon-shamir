@@ -211,5 +211,5 @@ Every malformed request - unknown fields, out-of-range numbers, odd or
 non-hex strings, short mnemonics, duplicate share indexes, mixed
 commitments, missing threshold - is answered with exactly one
 `{"error": "<message>"}` object and exit 1. The message names the
-offending field or share. 52 such cases are pinned in
+offending field or share. 78 such cases are pinned in
 scripts/robustness.py.
