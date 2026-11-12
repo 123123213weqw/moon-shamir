@@ -97,6 +97,20 @@ if (command === 'split' && (args.length >= 3 && args.length <= 5)) {
     console.log(`${share.index}:${share.threshold}:${share.digest}:${share.encoding}:${share.data}`);
   }
   console.log('# any ' + report.threshold_new + ' of the lines above recover the same secret');
+} else if (command === 'split-many' && args.length >= 4) {
+  // split-many <threshold> <shares> <seed> <hex> <hex> ...
+  const [threshold, shares, seed, ...secrets] = args;
+  const report = call({operation: 'split_many', secrets,
+    threshold: Number(threshold), shares: Number(shares),
+    seed: Number(seed)});
+  console.log(`secrets ${report.secrets}  threshold ${report.threshold}` +
+    `  shares ${report.shares}  encoding ${report.share_encoding}`);
+  for (const split of report.splits) {
+    console.log(`# secret ${split.position}: ${split.secret_bytes}B digest ${split.digest}`);
+    for (const share of split.share_list) {
+      console.log(`${share.index}:${share.threshold}:${share.digest}:${share.encoding}:${share.data}`);
+    }
+  }
 } else if (command === 'fingerprint' && args.length >= 1) {
   const report = call({operation: 'fingerprint', shares: gatherShares(args)});
   console.log(`fingerprint ${report.fingerprint}  shares ${report.shares}` +
@@ -122,6 +136,7 @@ if (command === 'split' && (args.length >= 3 && args.length <= 5)) {
 } else {
   console.log('Usage:');
   console.log('  shamir.mjs split    <secret-hex> <threshold> <shares> [seed]');
+  console.log('  shamir.mjs split-many <threshold> <shares> <seed> <hex> <hex> ...');
   console.log('  shamir.mjs combine  <share> <share> ...');
   console.log('  shamir.mjs diagnose <share> <share> ...');
   console.log('  shamir.mjs verify   <share> <share> ... [secret-hex]');
