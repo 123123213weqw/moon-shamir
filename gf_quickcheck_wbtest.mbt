@@ -121,3 +121,42 @@ test "property: base64 payload round trip" {
     count=300,
   )
 }
+
+///|
+/// The fingerprint is order-insensitive on generated splits: whatever
+/// subset the generator packs, shuffling the share list cannot move it.
+test "property: fingerprint ignores share order" {
+  @quickcheck.check(
+    (word : Int32) => {
+      let secret : Array[Int32] = [word & 0xFF, (word >> 8) & 0xFF]
+      let split = shamir_split(secret, 2, 5, word.to_uint64(), "crc32", [])
+      let forward = shamir_fingerprint([split[0], split[3], split[4]])
+      let rotated = shamir_fingerprint([split[4], split[0], split[3]])
+      forward == rotated
+    },
+    count=300,
+  )
+}
+
+///|
+/// Words encode-decode is the identity on generated shares: the
+/// positional layout and its checksum survive the round trip.
+test "property: words encoding round-trips" {
+  @quickcheck.check(
+    (word : Int32) => {
+      let secret : Array[Int32] = [
+        word & 0xFF,
+        (word >> 8) & 0xFF,
+        (word >> 16) & 0xFF,
+      ]
+      let split = shamir_split(secret, 3, 4, word.to_uint64(), "crc32", [])
+      let share = split[1]
+      let words = mnemonic_encode(share.index, share.threshold, share.data)
+      let decoded = mnemonic_decode(words)
+      decoded.index == share.index &&
+      decoded.threshold == share.threshold &&
+      decoded.data == share.data
+    },
+    count=300,
+  )
+}
