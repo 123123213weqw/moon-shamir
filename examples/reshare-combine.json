@@ -1,0 +1,29 @@
+{
+  "operation": "combine",
+  "shares": [
+    {
+      "index": 7,
+      "threshold": 4,
+      "digest": "8407759b",
+      "data": "984294448e713b07550c6b7208625f28"
+    },
+    {
+      "index": 2,
+      "threshold": 4,
+      "digest": "8407759b",
+      "data": "14f51d8a82b3c5dce09d6ac9c7670b17"
+    },
+    {
+      "index": 6,
+      "threshold": 4,
+      "digest": "8407759b",
+      "data": "a946ffa06844dd06de20fb5e5968deee"
+    },
+    {
+      "index": 4,
+      "threshold": 4,
+      "digest": "8407759b",
+      "data": "7b0433f3c98d887de27d91a5caee957a"
+    }
+  ]
+}

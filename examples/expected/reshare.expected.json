@@ -1,0 +1,60 @@
+{
+  "algorithm": "shamir-gf256",
+  "threshold_new": 4,
+  "shares_new": 6,
+  "digest": "8407759b",
+  "commit": "crc32",
+  "share_encoding": "hex",
+  "share_list": [
+    {
+      "index": 2,
+      "threshold": 4,
+      "digest": "8407759b",
+      "commit": "crc32",
+      "data": "14f51d8a82b3c5dce09d6ac9c7670b17",
+      "encoding": "hex"
+    },
+    {
+      "index": 4,
+      "threshold": 4,
+      "digest": "8407759b",
+      "commit": "crc32",
+      "data": "7b0433f3c98d887de27d91a5caee957a",
+      "encoding": "hex"
+    },
+    {
+      "index": 6,
+      "threshold": 4,
+      "digest": "8407759b",
+      "commit": "crc32",
+      "data": "a946ffa06844dd06de20fb5e5968deee",
+      "encoding": "hex"
+    },
+    {
+      "index": 7,
+      "threshold": 4,
+      "digest": "8407759b",
+      "commit": "crc32",
+      "data": "984294448e713b07550c6b7208625f28",
+      "encoding": "hex"
+    },
+    {
+      "index": 8,
+      "threshold": 4,
+      "digest": "8407759b",
+      "commit": "crc32",
+      "data": "402eef9d80b857a6fe4fba1895cd06a7",
+      "encoding": "hex"
+    },
+    {
+      "index": 9,
+      "threshold": 4,
+      "digest": "8407759b",
+      "commit": "crc32",
+      "data": "c22dcd3d321a58e21bb6b6a442069b78",
+      "encoding": "hex"
+    }
+  ],
+  "seed": 77,
+  "seed_hex": "000000000000004d"
+}

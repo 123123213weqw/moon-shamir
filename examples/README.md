@@ -17,6 +17,8 @@ quietly stop being true.
 | split-many.json | Three secrets split in one request, word-encoded, each at its derived seed. |
 | sort.json | Shares 5, 3, 1 of the split.json split, shuffled on input; the canonical order comes back, hex-normalized. |
 | check.json | Two shares of a 3-threshold split counted: gap 1, not ready, nothing recovered. |
+| reshare.json | Shares 1, 3 and 5 of the split.json split re-minted as a 4-of-6 generation at a fresh seed, on x coordinates the old set never occupied. |
+| reshare-combine.json | Four shares of that new generation, shuffled, recovering the original secret - the rotation changed the shares and kept the secret. |
 
 Reproduce any of them by hand:
 
