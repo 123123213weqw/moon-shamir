@@ -5,7 +5,10 @@ repository's own history; the commit messages name the incidents.
 
 ## The order of operations
 
-Host build, local commit - never the reverse:
+`scripts/host-check.sh` is the loop below as one command: push the
+tracked paths, pin the expected answer of any example that lacks one
+(the engine is their only writer), run the ladder on the host, pull
+the verified tree back. The steps it automates:
 
 1. Edit sources locally; sync to the build host (rsync, excluding
    `_build`, `.git`, `.github` and pushing **with `--delete`** so the

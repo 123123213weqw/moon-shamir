@@ -69,4 +69,7 @@ python3 -B scripts/stats.py > /tmp/v_step.txt 2>&1 || { tail -5 /tmp/v_step.txt;
 # before checking formats so the check sees its own output.
 moon info >/dev/null 2>&1
 moon fmt --check
+printf 'host tooling: '
+sh -n scripts/host-check.sh
+echo 'host-check.sh syntax ok'
 echo 'Verify: every step passed'
