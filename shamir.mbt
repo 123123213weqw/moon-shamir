@@ -93,6 +93,44 @@ fn shares_sorted(shares : Array[Share]) -> Array[Share] {
 }
 
 ///|
+/// The one-split agreement every multi-share operation demands, as one
+/// check: same threshold, label, commitment and mac across the set,
+/// equal payload widths, and no x coordinate used twice. The shares
+/// come back in canonical order. The same refusals combine gives, by
+/// name, so an impostor share cannot hide inside a counting question.
+fn shares_agreeing(shares : Array[Share]) -> Array[Share] raise InputError {
+  let threshold = shares[0].threshold
+  let digest = shares[0].digest
+  let commit = shares[0].commit
+  let mac = shares[0].mac
+  let width = shares[0].data.length()
+  for share in shares {
+    if share.threshold != threshold {
+      raise InputError("shares come from different thresholds")
+    }
+    if share.digest != digest {
+      raise InputError("shares come from different splits")
+    }
+    if share.commit != commit {
+      raise InputError("shares come from different commitments")
+    }
+    if share.mac != mac {
+      raise InputError("shares come from different macs")
+    }
+    if share.data.length() != width {
+      raise InputError("shares have different lengths")
+    }
+  }
+  let sorted = shares_sorted(shares)
+  for i in 1..<sorted.length() {
+    if sorted[i].index == sorted[i - 1].index {
+      raise InputError("duplicate share index: " + sorted[i].index.to_string())
+    }
+  }
+  sorted
+}
+
+///|
 /// Split `secret` into n shares of which any k recover it. Each byte gets
 /// its own random polynomial of degree k-1 whose constant term is that
 /// byte; share i is the evaluation of every polynomial at x = i. Fewer

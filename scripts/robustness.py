@@ -121,6 +121,13 @@ CASES = [
         share(), share(index=2)], 'share_encoding': 'mime'}),
     ('sort unknown field', {'operation': 'sort', 'shares': [
         share(), share(index=2)], 'wat': 1}),
+    ('check no shares', {'operation': 'check', 'shares': []}),
+    ('check duplicate index', {'operation': 'check', 'shares': [
+        share(), share()]}),
+    ('check mixed thresholds', {'operation': 'check', 'shares': [
+        share(), share(index=2, threshold=3)]}),
+    ('check unknown field', {'operation': 'check', 'shares': [
+        share(), share(index=2)], 'wat': 1}),
 ]
 
 failures = []

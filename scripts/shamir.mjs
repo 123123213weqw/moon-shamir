@@ -65,6 +65,7 @@ function usage() {
   console.log('  shamir.mjs info     <share>');
   console.log('  shamir.mjs fingerprint <share> <share> ...');
   console.log('  shamir.mjs sort     [encoding] <share> <share> ...');
+  console.log('  shamir.mjs check    <share> <share> ...');
   console.log('A share is index:threshold:digest:data or the JSON object form.');
   process.exit(2);
 }
@@ -147,6 +148,13 @@ if (command === 'split' && (args.length >= 3 && args.length <= 5)) {
   for (const share of report.share_list) {
     console.log(`${share.index}:${share.threshold}:${share.digest}:${share.encoding}:${share.data}`);
   }
+} else if (command === 'check' && args.length >= 1) {
+  const report = call({operation: 'check', shares: gatherShares(args)});
+  console.log(`ready ${report.ready}  gap ${report.gap}  shares ${report.shares}` +
+    `  threshold ${report.threshold}`);
+  console.log(`digest ${report.digest}  commit ${report.commit}` +
+    `  payload ${report.payload_bytes}B` +
+    (report.authenticated ? '  authenticated' : ''));
 } else if (command === 'info' && args.length >= 1) {
   const share = gatherShares(args)[0];
   const report = call({operation: 'info', share});

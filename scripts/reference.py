@@ -566,6 +566,38 @@ def main():
         run({"operation": "sort", "shares": [made[0], dict(made[0])]},
             error=True)
         checked += 2
+    # Threshold readiness: the gap is the threshold minus the shares in
+    # hand (floored at zero), ready exactly when the count reaches it -
+    # computed independently on random subsets, single shares included,
+    # and the report must carry nothing secret-shaped.
+    for iteration in range(8):
+        length = rng.randrange(1, 13)
+        secret = bytes(rng.randrange(256) for _ in range(length)).hex()
+        threshold = rng.randrange(2, 6)
+        shares = rng.randrange(threshold, 9)
+        seed = rng.randrange(0, 1 << 32)
+        made = split(bytes.fromhex(secret), threshold, shares, seed)
+        hold = rng.randrange(1, shares + 1)
+        subset = rng.sample(made, hold)
+        rng.shuffle(subset)
+        report = run({"operation": "check", "shares": subset})
+        assert report["shares"] == hold, f'check-count-{iteration}'
+        assert report["threshold"] == threshold, f'check-threshold-{iteration}'
+        assert report["gap"] == max(0, threshold - hold), f'check-gap-{iteration}'
+        assert report["ready"] == (hold >= threshold), f'check-ready-{iteration}'
+        assert report["payload_bytes"] == length, f'check-width-{iteration}'
+        assert report["authenticated"] is False, f'check-auth-{iteration}'
+        assert "secret_hex" not in report, f'check-leak-{iteration}'
+        checked += 1
+    keyed = run({"operation": "split", "secret_hex": "beef", "threshold": 2,
+        "shares": 3, "seed": 11, "mac_key_hex": "aabb"})
+    keyed_report = run({"operation": "check",
+        "shares": keyed["share_list"][:1]})
+    assert keyed_report["authenticated"] is True, 'check-keyed-flag'
+    assert keyed_report["gap"] == 1, 'check-keyed-gap'
+    run({"operation": "check", "shares": [made[0], dict(made[0])]},
+        error=True)
+    checked += 2
     # HMAC key-size boundary regression: the API caps keys at 64 bytes,
     # so the fuzz walks every interesting length it allows - including
     # 63 and 64, the edge of the hash-then-pad branch that a fixed

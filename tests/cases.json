@@ -176,5 +176,25 @@
         }
       ]
     }
+  },
+  {
+    "name": "check counts the gap below the threshold",
+    "request": {
+      "operation": "check",
+      "shares": [
+        {
+          "index": 3,
+          "threshold": 2,
+          "digest": "b51d571d",
+          "data": "a8dabcf8"
+        }
+      ]
+    },
+    "expected": {
+      "shares": 1,
+      "threshold": 2,
+      "gap": 1,
+      "ready": false
+    }
   }
 ]

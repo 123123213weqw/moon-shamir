@@ -750,3 +750,90 @@ test "sort orders by index, normalizes encodings, refuses impostors" {
   }
   assert_eq(mixed, "shares come from different splits")
 }
+
+///|
+test "check counts the gap without recovering" {
+  let split = run(
+    from_json(
+      @json.parse(
+        "{\"operation\":\"split\",\"secret_hex\":\"cafebabe\",\"threshold\":3,\"shares\":5,\"seed\":42}",
+      ),
+    ),
+  )
+  let shares = match get(split, "share_list") {
+    Array(items) => items
+    _ => abort("share_list missing")
+  }
+  // Two of a threshold-3 split: one short, and the door stays closed.
+  let short = run(
+    record([
+      ("operation", String("check")),
+      ("shares", Array([shares[4], shares[0]])),
+    ]),
+  )
+  assert_eq(get(short, "shares"), Number(2))
+  assert_eq(get(short, "threshold"), Number(3))
+  assert_eq(get(short, "gap"), Number(1))
+  assert_eq(get(short, "ready"), Bool(false))
+  assert_eq(get(short, "payload_bytes"), Number(4))
+  // Nothing secret-shaped rides along.
+  assert_eq(has(short, "secret_hex"), false)
+  // A single share is a valid question: two still needed.
+  let one = run(
+    record([("operation", String("check")), ("shares", Array([shares[2]]))]),
+  )
+  assert_eq(get(one, "gap"), Number(2))
+  assert_eq(get(one, "ready"), Bool(false))
+  // Exactly the quorum: ready, and still nothing interpolated.
+  let quorum = run(
+    record([
+      ("operation", String("check")),
+      ("shares", Array([shares[1], shares[3], shares[0]])),
+    ]),
+  )
+  assert_eq(get(quorum, "gap"), Number(0))
+  assert_eq(get(quorum, "ready"), Bool(true))
+  assert_eq(has(quorum, "secret_hex"), false)
+  // Over the quorum stays ready with the gap floored at zero.
+  let over = run(
+    record([("operation", String("check")), ("shares", Array(shares))]),
+  )
+  assert_eq(get(over, "ready"), Bool(true))
+  assert_eq(get(over, "gap"), Number(0))
+  // The same refusals by name: a duplicate x, a foreign digest.
+  let duplicated = try {
+    let _ = run(
+      record([
+        ("operation", String("check")),
+        ("shares", Array([shares[0], shares[0]])),
+      ]),
+    )
+    "no error"
+  } catch {
+    InputError(message) => message
+  }
+  assert_eq(duplicated, "duplicate share index: 1")
+  let other = run(
+    from_json(
+      @json.parse(
+        "{\"operation\":\"split\",\"secret_hex\":\"cafebabf\",\"threshold\":3,\"shares\":5,\"seed\":42}",
+      ),
+    ),
+  )
+  let other_shares = match get(other, "share_list") {
+    Array(items) => items
+    _ => abort("share_list missing")
+  }
+  let foreign = try {
+    let _ = run(
+      record([
+        ("operation", String("check")),
+        ("shares", Array([shares[0], other_shares[1]])),
+      ]),
+    )
+    "no error"
+  } catch {
+    InputError(message) => message
+  }
+  assert_eq(foreign, "shares come from different splits")
+}

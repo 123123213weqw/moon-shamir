@@ -19,6 +19,7 @@ pub fn run(request : Value) -> Value raise InputError {
     String("info") => info_with(request)
     String("fingerprint") => fingerprint_with(request)
     String("sort") => sort_with(request)
+    String("check") => check_with(request)
     String("split_many") => split_many_with(request)
     String(other) => raise InputError("unsupported operation: " + other)
     _ => raise InputError("missing field: operation")
@@ -711,34 +712,7 @@ fn sort_with(request : Value) -> Value raise InputError {
   for entry in raw {
     parsed.push(share_from_value(entry))
   }
-  let threshold = parsed[0].threshold
-  let digest = parsed[0].digest
-  let commit = parsed[0].commit
-  let mac = parsed[0].mac
-  let width = parsed[0].data.length()
-  for share in parsed {
-    if share.threshold != threshold {
-      raise InputError("shares come from different thresholds")
-    }
-    if share.digest != digest {
-      raise InputError("shares come from different splits")
-    }
-    if share.commit != commit {
-      raise InputError("shares come from different commitments")
-    }
-    if share.mac != mac {
-      raise InputError("shares come from different macs")
-    }
-    if share.data.length() != width {
-      raise InputError("shares have different lengths")
-    }
-  }
-  let sorted = shares_sorted(parsed)
-  for i in 1..<sorted.length() {
-    if sorted[i].index == sorted[i - 1].index {
-      raise InputError("duplicate share index: " + sorted[i].index.to_string())
-    }
-  }
+  let sorted = shares_agreeing(parsed)
   let encoded : Array[Value] = []
   for share in sorted {
     encoded.push(share_to_value_as(share, share_encoding))
@@ -746,11 +720,45 @@ fn sort_with(request : Value) -> Value raise InputError {
   record([
     ("algorithm", String("shamir-gf256")),
     ("shares", Number(sorted.length().to_double())),
-    ("threshold", Number(threshold.to_double())),
-    ("digest", String(digest_hex(digest))),
-    ("commit", String(commit)),
+    ("threshold", Number(sorted[0].threshold.to_double())),
+    ("digest", String(digest_hex(sorted[0].digest))),
+    ("commit", String(sorted[0].commit)),
     ("share_encoding", String(share_encoding)),
     ("share_list", Array(encoded)),
+  ])
+}
+
+///|
+/// Count a share set against its threshold without recovering anything:
+/// how many shares are in hand, the threshold they name, and how many
+/// more are needed before combine's door opens. The one-split agreement
+/// is demanded - the same refusals, by name - so `ready` means k
+/// consistent shares are in hand, not merely k lines. A single share is
+/// a valid question here: one holder asking how far the quorum still is.
+fn check_with(request : Value) -> Value raise InputError {
+  fields_only(request, ["operation", "shares"])
+  let raw = arr(required(request, "shares"))
+  if raw.length() < 1 || raw.length() > 255 {
+    raise InputError("shares must list 1..255 shares")
+  }
+  let parsed : Array[Share] = []
+  for entry in raw {
+    parsed.push(share_from_value(entry))
+  }
+  let sorted = shares_agreeing(parsed)
+  let count = sorted.length()
+  let threshold = sorted[0].threshold
+  let gap = if count < threshold { threshold - count } else { 0 }
+  record([
+    ("algorithm", String("shamir-gf256")),
+    ("shares", Number(count.to_double())),
+    ("threshold", Number(threshold.to_double())),
+    ("gap", Number(gap.to_double())),
+    ("ready", Bool(gap == 0)),
+    ("digest", String(digest_hex(sorted[0].digest))),
+    ("commit", String(sorted[0].commit)),
+    ("authenticated", Bool(sorted[0].mac != "")),
+    ("payload_bytes", Number(sorted[0].data.length().to_double())),
   ])
 }
 

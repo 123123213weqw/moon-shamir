@@ -67,7 +67,10 @@ verifies - a bad checksum is a finding, not a refusal), and
 puts a shuffled, mixed-encoding share pile into canonical order - by
 x, one uniform payload encoding - with the one-split agreement checked
 but nothing interpolated, so a below-threshold set sorts as happily as
-a quorum.
+a quorum. `check` counts the set against its threshold and answers
+`gap` - how many shares short - and `ready`, with the agreement checked
+and nothing recovered, so "do we have enough" is a question a holder
+below the quorum can ask without combine's refusal.
 A password can stand in for the seed (PBKDF2-HMAC-SHA256), an HMAC key
 can tag every share against substitution, and secrets may be UTF-8
 text. The CLI wraps all of it:
@@ -82,6 +85,7 @@ node scripts/shamir.mjs split cafebabe 2 3 5 words
 node scripts/shamir.mjs info <share>
 node scripts/shamir.mjs fingerprint <shares...>
 node scripts/shamir.mjs sort [encoding] <shares...>
+node scripts/shamir.mjs check <shares...>
 node scripts/shamir.mjs kdf "a pass phrase" [salt-hex] [iterations]
 ```
 

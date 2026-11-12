@@ -1,0 +1,11 @@
+{
+  "algorithm": "shamir-gf256",
+  "shares": 2,
+  "threshold": 3,
+  "gap": 1,
+  "ready": false,
+  "digest": "8407759b",
+  "commit": "crc32",
+  "authenticated": false,
+  "payload_bytes": 16
+}

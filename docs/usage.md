@@ -141,6 +141,21 @@ choosing (`hex` default, or `base64` / `words`), so a mixed pile
 becomes a uniform, canonically ordered list for storage or paper -
 `did I transcribe these in order` answered before combine is attempted.
 
+## check
+
+```json
+{"operation": "check", "shares": [...]}
+```
+
+Count a share set against its threshold without recovering anything:
+`shares` in hand, the `threshold` they name, `gap` - how many more are
+needed before combine's door opens - and `ready` (`gap` is zero). The
+one-split agreement is demanded with the same refusals by name, so
+`ready` means k consistent shares, not merely k lines; a single share
+is a valid question here (combine demands two). The report also names
+the `digest`, `commit`, `authenticated` and `payload_bytes` - and
+carries nothing secret-shaped.
+
 ## info
 
 ```json
@@ -179,6 +194,7 @@ node scripts/shamir.mjs combine 1:3:...:... 3:3:...:... 5:3:...:...
 node scripts/shamir.mjs diagnose <shares...>
 node scripts/shamir.mjs verify <shares...> [secret-hex]
 node scripts/shamir.mjs sort [encoding] <shares...>
+node scripts/shamir.mjs check <shares...>
 ```
 
 ## Errors

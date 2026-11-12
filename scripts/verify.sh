@@ -38,7 +38,9 @@ node scripts/shamir.mjs combine $(echo "$LINES" | sed -n '1p;3p;5p') | grep -q '
   && node scripts/shamir.mjs info $(echo "$W" | sed -n '1p') | grep -q 'checksum_ok true' \
   && node scripts/shamir.mjs fingerprint $(echo "$LINES" | sed -n '1p;3p;5p') | grep -q 'fingerprint [0-9a-f]\{16\}' \
   && node scripts/shamir.mjs sort $(echo "$LINES" | sed -n '3p;5p;1p') | grep -v '^#' | grep ':' | sed -n '1p' | grep -q '^1:' \
-  && echo 'round trip passed (split/combine/diagnose/kdf/reshare/words/info/fingerprint/sort)'
+  && node scripts/shamir.mjs check $(echo "$LINES" | sed -n '1p;3p') | grep -q 'ready false  gap 1' \
+  && node scripts/shamir.mjs check $(echo "$LINES" | sed -n '1p;3p;5p') | grep -q 'ready true  gap 0' \
+  && echo 'round trip passed (split/combine/diagnose/kdf/reshare/words/info/fingerprint/sort/check)'
 printf 'bench: '
 moon bench --target js 2>/dev/null | grep -c ' ok$' | xargs -I{} echo '{} benchmarks ran'
 printf 'baseline: '

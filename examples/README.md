@@ -16,6 +16,7 @@ quietly stop being true.
 | fingerprint.json | Two hex shares folded to one 16-hex-digit set id. |
 | split-many.json | Three secrets split in one request, word-encoded, each at its derived seed. |
 | sort.json | Shares 5, 3, 1 of the split.json split, shuffled on input; the canonical order comes back, hex-normalized. |
+| check.json | Two shares of a 3-threshold split counted: gap 1, not ready, nothing recovered. |
 
 Reproduce any of them by hand:
 
