@@ -1,5 +1,47 @@
 # Changelog
 
+## 0.6.0 — 2026-11-13
+
+Two operations for the questions around recovery, one constructor -
+and a ladder that had learned to fail green.
+
+sort puts a share list in canonical order: by x coordinate, payloads
+re-encoded in one encoding of the caller's choosing (hex by default),
+the one-split agreement demanded with the same refusals by name, and
+nothing interpolated - a shuffled mixed-encoding pile becomes a
+storage-ready list, and a set below the threshold sorts as happily as
+a quorum. check counts a set against its threshold and answers the
+gap - how many shares short - and ready, with the same agreement and
+no recovery, so "how far is the quorum" is askable below combine's
+refusal; a single share is a valid question. split_with_defaults(
+secret_hex, k, n) is the one-call constructor for the common shape,
+every optional field at its documented default, and its doc comment
+says plainly what seed 0 is worth. The engine's three inline
+copy-and-sort blocks collapsed into shares_sorted, and the new
+operations' agreement checks into shares_agreeing.
+
+The bug this release nearly shipped with: the ladder's surface and
+cli-tool steps were && chains, and under set -e a failing command
+inside an AND list never exits the shell - a drifted api.golden
+skipped its echo and the ladder ran green. The toolchain pin to
+0.1.20261104 had changed moon info's rendering, so the golden had
+quietly gone a format generation stale; it is refreshed, both steps
+are fatal and say why, and the fix was verified red before green (a
+drifted golden stops the ladder with rc=1 naming the file).
+
+Around them: reshare and fingerprint join the benchmark ladder (and
+the size baseline moves with the code that grew it), the README gains
+the performance table those numbers deserve, host-check.sh runs
+CONTRIBUTING's whole host loop as one command with the engine
+pinning new examples' answers itself, the reshare chain joins the
+pinned examples end to end, a generated property holds split_many's
+position law on random parameters, the oracle cross-examines batches
+under password seeds, sha256 labels, mac tags and words payloads
+together, boundaries state what the new operations prove and do not,
+and usage.md opens with an operations-at-a-glance table whose honest
+column is interpolation. 44 test declarations, 9 CLI fixtures, 13
+pinned examples, 116 refusal messages.
+
 ## 0.5.1 — 2026-11-11
 
 The security-clarification release, answering a competition review
