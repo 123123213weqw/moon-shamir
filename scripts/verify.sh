@@ -40,7 +40,8 @@ node scripts/shamir.mjs combine $(echo "$LINES" | sed -n '1p;3p;5p') | grep -q '
   && node scripts/shamir.mjs sort $(echo "$LINES" | sed -n '3p;5p;1p') | grep -v '^#' | grep ':' | sed -n '1p' | grep -q '^1:' \
   && node scripts/shamir.mjs check $(echo "$LINES" | sed -n '1p;3p') | grep -q 'ready false  gap 1' \
   && node scripts/shamir.mjs check $(echo "$LINES" | sed -n '1p;3p;5p') | grep -q 'ready true  gap 0' \
-  && echo 'round trip passed (split/combine/diagnose/kdf/reshare/words/info/fingerprint/sort/check)'
+  && echo 'round trip passed (split/combine/diagnose/kdf/reshare/words/info/fingerprint/sort/check)' \
+  || { echo 'cli tool chain failed'; exit 1; }
 printf 'bench: '
 moon bench --target js 2>/dev/null | grep -c ' ok$' | xargs -I{} echo '{} benchmarks ran'
 printf 'baseline: '
@@ -55,7 +56,13 @@ printf 'messages: '
 python3 -B scripts/messages.py > /tmp/v_step.txt 2>&1 || { tail -5 /tmp/v_step.txt; exit 1; }; tail -1 /tmp/v_step.txt
 printf 'surface: '
 moon info
-diff pkg.generated.mbti tests/api.golden && echo 'api surface unchanged'
+if diff pkg.generated.mbti tests/api.golden > /tmp/v_surface.txt 2>&1; then
+  echo 'api surface unchanged'
+else
+  echo 'api surface CHANGED - update tests/api.golden in the same commit'
+  cat /tmp/v_surface.txt
+  exit 1
+fi
 printf 'stats: '
 python3 -B scripts/stats.py > /tmp/v_step.txt 2>&1 || { tail -5 /tmp/v_step.txt; exit 1; }; tail -1 /tmp/v_step.txt
 # The surface step's moon info rewrites pkg.generated.mbti; regenerate
