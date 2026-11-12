@@ -598,6 +598,51 @@ def main():
     run({"operation": "check", "shares": [made[0], dict(made[0])]},
         error=True)
     checked += 2
+    # Batch splits under the full option set: password-derived seeds,
+    # sha256 labels, mac tags, words payloads - every position checked
+    # against the oracle's own arithmetic (its PBKDF2 seed, its split,
+    # its hmac tag, its word-table decode), not merely against
+    # standalone engine splits.
+    for iteration in range(4):
+        count = rng.randrange(2, 5)
+        secrets = [bytes(rng.randrange(256) for _ in range(rng.randrange(1, 9))).hex()
+                   for _ in range(count)]
+        threshold = rng.randrange(2, 4)
+        shares = rng.randrange(threshold, 6)
+        password = ''.join(rng.choice('batch pass phrase x')
+                           for _ in range(rng.randrange(4, 16)))
+        salt = bytes(rng.randrange(256) for _ in range(4))
+        iterations = rng.choice([1, 1000])
+        key = bytes(rng.randrange(256) for _ in range(rng.randrange(1, 9))).hex()
+        base = derive_seed(password, salt, iterations)
+        report = run({"operation": "split_many", "secrets": secrets,
+            "threshold": threshold, "shares": shares, "password": password,
+            "salt_hex": salt.hex(), "iterations": iterations,
+            "commit": "sha256", "mac_key_hex": key,
+            "share_encoding": "words"})
+        assert report["secrets"] == count, f'batch-deep-count-{iteration}'
+        assert report["seed_derivation"] == "pbkdf2-sha256", f'batch-deep-flag-{iteration}'
+        assert report["commit"] == "sha256", f'batch-deep-commitflag-{iteration}'
+        for i, (secret, split_obj) in enumerate(zip(secrets, report["splits"])):
+            derived = (base + i) & ((1 << 53) - 1)
+            want = split(bytes.fromhex(secret), threshold, shares,
+                         derived, 'sha256')
+            want_tag = _hmacmod.new(bytes.fromhex(key),
+                bytes.fromhex(secret), _hl.sha256).hexdigest()[:16]
+            assert split_obj["digest"] == want[0]["digest"], f'batch-deep-digest-{iteration}-{i}'
+            for got, original in zip(split_obj["share_list"], want):
+                assert got["index"] == original["index"], f'batch-deep-idx-{iteration}-{i}'
+                assert got["commit"] == "sha256", f'batch-deep-commit-{iteration}-{i}'
+                assert got.get("mac") == want_tag, f'batch-deep-mac-{iteration}-{i}'
+                words = got["data"].split(" ")
+                payload = bytes(word_table.index(w) for w in words[2:-2])
+                assert payload.hex() == original["data"], f'batch-deep-words-{iteration}-{i}'
+            picked = split_obj["share_list"][:threshold]
+            answer = run({"operation": "combine", "shares": picked,
+                "mac_key_hex": key})
+            assert answer["verified"] is True, f'batch-deep-recover-{iteration}-{i}'
+            assert answer["secret_hex"] == secret, f'batch-deep-secret-{iteration}-{i}'
+        checked += 1
     # HMAC key-size boundary regression: the API caps keys at 64 bytes,
     # so the fuzz walks every interesting length it allows - including
     # 63 and 64, the edge of the hash-then-pad branch that a fixed
