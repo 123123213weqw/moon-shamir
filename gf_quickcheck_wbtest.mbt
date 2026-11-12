@@ -160,3 +160,85 @@ test "property: words encoding round-trips" {
     count=300,
   )
 }
+
+///|
+/// The batch law on generated requests: split_many's position i
+/// answers exactly a standalone split at seed + i - the contract the
+/// batch API promises, held on generated secrets, thresholds, counts
+/// and seeds, compared share-for-share through the boundary. A refusal
+/// from either path fails the property (and shrinks toward the
+/// offense): the generated parameters are all in range, so there is
+/// nothing legitimate to refuse.
+test "property: split_many position i equals a standalone split at seed+i" {
+  @quickcheck.check(
+    (words : Array[Int32]) => {
+      if words.length() < 16 {
+        return true
+      }
+      let count = 2 + (words[0] & 0x3)
+      let length = 1 + (words[1] & 0x3)
+      let secrets : Array[Value] = []
+      for s in 0..<count {
+        let secret : Array[Int32] = []
+        for i in 0..<length {
+          secret.push(words[(s * length + i + 2) & 0xF] & 0xFF)
+        }
+        secrets.push(String(to_hex(secret)))
+      }
+      let threshold = 2 + (words[15] & 0x3)
+      let shares = threshold + (words[14] & 0x3)
+      let seed = ((words[13] & 0xFFFF).to_int64() << 16) |
+        (words[12] & 0xFFFF).to_int64()
+      let batch_wrapped : Result[Value, InputError] = Ok(
+        split_many_with(
+          record([
+            ("operation", String("split_many")),
+            ("secrets", Array(secrets)),
+            ("threshold", Number(threshold.to_double())),
+            ("shares", Number(shares.to_double())),
+            ("seed", Number(seed.to_double())),
+          ]),
+        ),
+      ) catch {
+        e => Err(e)
+      }
+      let batch = match batch_wrapped {
+        Ok(report) => report
+        Err(_) => return false
+      }
+      let splits = match get(batch, "splits") {
+        Array(items) => items
+        _ => return false
+      }
+      if splits.length() != count {
+        return false
+      }
+      for i, entry in splits {
+        let derived = (seed.reinterpret_as_uint64() + i.to_uint64()) &
+          0x1FFFFFFFFFFFFFUL
+        let solo_wrapped : Result[Value, InputError] = Ok(
+          split_with(
+            record([
+              ("operation", String("split")),
+              ("secret_hex", secrets[i]),
+              ("threshold", Number(threshold.to_double())),
+              ("shares", Number(shares.to_double())),
+              ("seed", Number(derived.to_double())),
+            ]),
+          ),
+        ) catch {
+          e => Err(e)
+        }
+        let solo = match solo_wrapped {
+          Ok(report) => report
+          Err(_) => return false
+        }
+        if get(entry, "share_list") != get(solo, "share_list") {
+          return false
+        }
+      }
+      true
+    },
+    count=150,
+  )
+}
