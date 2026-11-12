@@ -21,6 +21,27 @@ constant: right for tests and demos, wrong for entropy - inject a real
 seed, a password derivation or a full-width `seed_hex` through `run`
 for anything that must stay secret.
 
+## The operations at a glance
+
+| Operation | What it does | Interpolates |
+|---|---|---|
+| [split](#split) | One secret into n shares; any k recover it | no |
+| [split_many](#split_many) | Up to 64 secrets in one request, each at seed + i | no |
+| [combine](#combine) | k or more shares back into the secret | yes - returns it |
+| [diagnose](#diagnose) | Names the shares no quorum agrees with | yes - returns it when a quorum exists |
+| [verify](#verify) | Verdict only; can prove a known secret | yes - returns nothing |
+| [reshare](#reshare) | Fresh split from k old shares | yes - the secret never exists in memory |
+| [fingerprint](#fingerprint) | 16-hex-digit id for a share set | no |
+| [info](#info) | Describes one share; a bad checksum is a finding | no |
+| [sort](#sort) | Canonical order, one uniform payload encoding | no |
+| [check](#check) | Threshold gap and readiness, counted | no |
+| [kdf](#kdf) | Derives the seed a password split would use | no |
+
+The interpolation column is the honesty column: everything the scheme
+does to the secret runs through interpolation, and each operation
+says whether it returns the result, keeps it out of memory, or never
+runs it at all.
+
 ## split
 
 ```json
