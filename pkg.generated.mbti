@@ -35,6 +35,8 @@ pub fn sha256_hex(Array[Int32]) -> String
 
 pub fn sha256_raw(Array[Int32]) -> Array[Int32]
 
+pub fn split_with_defaults(String, Int32, Int32) -> Value raise InputError
+
 pub fn str(Value) -> String raise InputError
 
 // Errors

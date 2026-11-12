@@ -13,6 +13,14 @@ raise`. Every failure raises `InputError` with a plain message; the CLI
 prints it as `{"error": "..."}` and exits 1. Object key order is never
 significant.
 
+Library callers who only need the common shape can skip request
+building entirely: `split_with_defaults(secret_hex, k, n)` answers
+exactly what `split` answers with every optional field at its default -
+seed 0, crc32 labels, hex payloads, no mac. Seed 0 is a fixed public
+constant: right for tests and demos, wrong for entropy - inject a real
+seed, a password derivation or a full-width `seed_hex` through `run`
+for anything that must stay secret.
+
 ## split
 
 ```json

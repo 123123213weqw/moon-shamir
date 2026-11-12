@@ -110,15 +110,18 @@ node _build/js/debug/build/cmd/main/main.js examples/split.json
 ## Library use
 
 `execute(Json) -> Json raise` is the standard JSON boundary; `run(Value)
--> Value raise` is the typed one over the same requests. Every exported
-function raises `InputError` with a plain message. The full public
-surface is frozen in tests/api.golden and diffed on every verify run -
-besides the two entry points it is exactly: the Value tree (from_json,
-to_json, get, has, required, str, arr, num, record, fields_only), the
-error type InputError with its equality, the SHA-256 helpers
-sha256_raw / sha256_hex that the labels build on, and the batched
-interpolation pair gf_lagrange_weights / gf_interpolate_weighted that
-the engines amortize with. If a change touches
+-> Value raise` is the typed one over the same requests; and
+`split_with_defaults(secret_hex, k, n)` is the one-call constructor for
+the common shape - every other choice at its documented default
+(seed 0, a public constant: tests and demos, never entropy). Every
+exported function raises `InputError` with a plain message. The full
+public surface is frozen in tests/api.golden and diffed on every verify
+run - besides the three entry points it is exactly: the Value tree
+(from_json, to_json, get, has, required, str, arr, num, record,
+fields_only), the error type InputError with its equality, the SHA-256
+helpers sha256_raw / sha256_hex that the labels build on, and the
+batched interpolation pair gf_lagrange_weights / gf_interpolate_weighted
+that the engines amortize with. If a change touches
 that file, the ladder says so in the same breath.
 
 ## Documentation

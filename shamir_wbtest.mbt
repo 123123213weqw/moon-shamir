@@ -837,3 +837,46 @@ test "check counts the gap without recovering" {
   }
   assert_eq(foreign, "shares come from different splits")
 }
+
+///|
+test "split_with_defaults is the one-call split at the default choices" {
+  let report = split_with_defaults("cafebabe", 2, 3)
+  assert_eq(get(report, "algorithm"), String("shamir-gf256"))
+  assert_eq(get(report, "threshold"), Number(2))
+  assert_eq(get(report, "shares"), Number(3))
+  assert_eq(get(report, "seed"), Number(0))
+  assert_eq(get(report, "commit"), String("crc32"))
+  assert_eq(get(report, "share_encoding"), String("hex"))
+  assert_eq(get(report, "authenticated"), Bool(false))
+  // The same answer run gives with the defaults spelled out.
+  let spelled = run(
+    from_json(
+      @json.parse(
+        "{\"operation\":\"split\",\"secret_hex\":\"cafebabe\",\"threshold\":2,\"shares\":3,\"seed\":0}",
+      ),
+    ),
+  )
+  assert_eq(get(report, "share_list"), get(spelled, "share_list"))
+  assert_eq(get(report, "seed_hex"), get(spelled, "seed_hex"))
+  // The shares it mints combine like any other split's.
+  let shares = match get(report, "share_list") {
+    Array(items) => items
+    _ => abort("share_list missing")
+  }
+  let combined = run(
+    record([
+      ("operation", String("combine")),
+      ("shares", Array([shares[0], shares[2]])),
+    ]),
+  )
+  assert_eq(get(combined, "secret_hex"), String("cafebabe"))
+  assert_eq(get(combined, "verified"), Bool(true))
+  // Refusals keep their names through the shortcut.
+  let refused = try {
+    let _ = split_with_defaults("cafebabe", 1, 3)
+    "no error"
+  } catch {
+    InputError(message) => message
+  }
+  assert_eq(refused, "threshold must be a whole number 2..255")
+}

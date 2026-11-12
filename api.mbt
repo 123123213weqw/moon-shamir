@@ -27,6 +27,29 @@ pub fn run(request : Value) -> Value raise InputError {
 }
 
 ///|
+/// The one-call split: a hex secret, a threshold, a share count - every
+/// other choice at its documented default (seed 0, crc32 labels, hex
+/// payloads, no mac), the same report run answers, as a typed Value.
+/// The constructor exists so the common call cannot misspell a field
+/// name; seed 0 is a fixed public constant, right for tests and demos
+/// and wrong for entropy - production callers inject a real seed, a
+/// password derivation or a full-width seed_hex through run.
+pub fn split_with_defaults(
+  secret_hex : String,
+  threshold : Int32,
+  shares : Int32,
+) -> Value raise InputError {
+  run(
+    record([
+      ("operation", String("split")),
+      ("secret_hex", String(secret_hex)),
+      ("threshold", Number(threshold.to_double())),
+      ("shares", Number(shares.to_double())),
+    ]),
+  )
+}
+
+///|
 /// JSON shape of one share, both ways.
 
 ///|
