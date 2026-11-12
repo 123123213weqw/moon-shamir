@@ -1,6 +1,7 @@
 ///|
 /// A JSON-shaped semantic value. Requests and reports travel as these;
 /// object key order is never significant, and numbers are finite doubles.
+#derive(Eq, @debug.Debug)
 pub(all) enum Value {
   Null
   Bool(Bool)
@@ -8,7 +9,7 @@ pub(all) enum Value {
   String(String)
   Array(Array[Value])
   Object(Map[String, Value])
-} derive(Eq, @debug.Debug)
+}
 
 ///|
 pub extend Value with Eq::{equal, not_equal}
@@ -44,9 +45,10 @@ pub fn Value::to_json(self : Value) -> Json {
 }
 
 ///|
+#derive(Eq, @debug.Debug)
 pub(all) suberror InputError {
   InputError(String)
-} derive(Eq, @debug.Debug)
+}
 
 ///|
 pub extend InputError with Eq::{equal, not_equal}
