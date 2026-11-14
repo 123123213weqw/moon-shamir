@@ -1,10 +1,17 @@
 """Counts the claims PROJECT_STATS.md makes about the source."""
 import json, sys
+from datetime import date
 from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 PRODUCTION = ['api.mbt', 'b64.mbt', 'gf256.mbt', 'hmac.mbt', 'mnemonic.mbt',
     'moonwords.mbt', 'sha256.mbt', 'shamir.mbt', 'splitmix.mbt', 'text.mbt',
     'value.mbt']
+VERSION = None
+for _line in (ROOT / 'moon.mod').read_text().splitlines():
+    if _line.strip().startswith('version'):
+        VERSION = _line.split('=', 1)[1].strip().strip('"')
+        break
+assert VERSION, 'moon.mod has no version line'
 physical = noncomment = 0
 for name in PRODUCTION:
     for line in (ROOT / name).read_text().splitlines():
@@ -23,7 +30,7 @@ stats = {'physical': physical, 'noncomment': noncomment, 'tests': tests,
     'fixtures': fixtures, 'examples': examples, 'messages': messages}
 if '--write' in sys.argv:
     table = ('# Source and verification statistics\n\n'
-        'Snapshot date: 2026-11-13. Module version: 0.6.0.\n\n'
+        f'Snapshot date: {date.today().isoformat()}. Module version: {VERSION}.\n\n'
         '| Category | Count |\n|---|---:|\n'
         f'| Owned production MoonBit physical lines (root) | {physical} |\n'
         f'| Nonblank, non-comment production lines | {noncomment} |\n'

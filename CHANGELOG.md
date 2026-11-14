@@ -1,5 +1,41 @@
 # Changelog
 
+## 0.6.1 — 2026-11-14
+
+The documentation-and-discipline release; no engine code changed, so
+every pin from 0.6.0 still holds.
+
+docs/api.md is the machine-facing API reference: the two boundaries,
+the types, the share object, one section per operation with the
+request fields, defaults, bounds and response shape, the exported
+field helpers and GF(256) interpolation surface, and the error
+contract with both of its pins named. docs/threat-model.md is the
+attack-side companion of security.md - the assets ranked, then seven
+adversaries (the custodian below the threshold, the corruptor, the
+forger, the low-entropy enumerator, the seed thief, the transcription
+error, the commitment confuser), each with what stops it, what does
+not, and which operation demonstrates it.
+
+examples/threat-demo.json makes the seed-thief adversary executable:
+its request is split.json's, byte for byte, seed included, and its
+pinned answer is therefore split.expected.json byte for byte - the
+reproducibility that makes the scheme auditable is the same fact that
+makes the seed exactly as sensitive as the secret.
+
+Around them: the README opens with the CI and license badges;
+.gitignore closes the whitelist's in-tree gap (.DS_Store, *.pyc,
+*.tmp inside the whitelisted directories would otherwise be
+trackable); CONTRIBUTING gains the rsync traps as a list - every
+line an incident, including the one where a misaimed `--delete` pull
+emptied the working tree down to its ignored artifacts; VERSIONING.md
+states what a version means here (observable change is surface, so
+response fields and refusal texts are minor events, never patches),
+the three files that move together, the gates, the tags, and the
+publish-from-the-host rule; and scripts/stats.py reads the module
+version from moon.mod and stamps the snapshot date at write time, so
+the stats table can no longer disagree with the release it
+documents. 14 pinned examples.
+
 ## 0.6.0 — 2026-11-13
 
 Two operations for the questions around recovery, one constructor -

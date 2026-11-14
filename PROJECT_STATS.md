@@ -1,6 +1,6 @@
 # Source and verification statistics
 
-Snapshot date: 2026-11-13. Module version: 0.6.0.
+Snapshot date: 2026-11-14. Module version: 0.6.1.
 
 | Category | Count |
 |---|---:|
@@ -8,7 +8,7 @@ Snapshot date: 2026-11-13. Module version: 0.6.0.
 | Nonblank, non-comment production lines | 2335 |
 | MoonBit test declarations | 44 |
 | CLI fixture cases | 9 |
-| Pinned examples | 13 |
+| Pinned examples | 14 |
 | Refusal messages | 116 |
 
 Production counts the algorithm and boundary files only; tests,
