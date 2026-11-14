@@ -58,6 +58,22 @@ transmitting them - belongs to the caller.
   documented in usage. It is a comparison aid, not an identity scheme;
   nothing prevents two holders of different splits of the same secret
   from comparing notes offline.
+- crosscheck: the shares beyond the interpolating quorum are evidence,
+  never interpolation - recovery comes from the untouched quorum with
+  or without the switch, a disagreeing extra can only close the
+  verdict and be named, and without the switch the behavior is
+  byte-identical to before.
+- label: report metadata only - it rides in the split's response,
+  never in the shares, and is covered by neither the integrity label
+  nor the fingerprint; the split's honesty depends on it not at all.
+- quorum_check and share_ids: derived honestly - the quorum count
+  goes null past the integers a JSON double carries exactly rather
+  than approximate, and the per-share ids hash the same canonical
+  image the set fingerprint hashes.
+- memory_hard: the kdf response names its own weakness class -
+  PBKDF2 trades time, not memory - and the documented substitution
+  (Argon2id outside, split its output) lives beside the field in
+  usage.
 - split_many: each secret's seed is the request seed plus its
   position - the equivalence with standalone splits is the contract
   and is tested position-for-position. A batch under one password

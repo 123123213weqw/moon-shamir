@@ -73,7 +73,19 @@ but nothing interpolated, so a below-threshold set sorts as happily as
 a quorum. `check` counts the set against its threshold and answers
 `gap` - how many shares short - and `ready`, with the agreement checked
 and nothing recovered, so "do we have enough" is a question a holder
-below the quorum can ask without combine's refusal.
+below the quorum can ask without combine's refusal. `quorum_check` is
+the planner's view of the same count - the excess, the distinct
+minimal quorums the set forms (exact until the count passes the
+integers a JSON double carries, null past it), and whether the extras
+are enough for combine's `crosscheck` mode. That mode - and verify's -
+turns the shares beyond the quorum into evidence: they are evaluated
+against the polynomial the quorum determines and never enter the
+interpolation; a disagreeing extra closes the verdict and is named.
+`split` takes an audit `label` the report carries verbatim - report
+metadata, never share content. `fingerprint`'s response and `info`
+carry each share's own 8-hex-digit id for paper reconciliation, and
+`kdf` says plainly `memory_hard: false` with the Argon2id
+substitution documented beside it.
 A password can stand in for the seed (PBKDF2-HMAC-SHA256), an HMAC key
 can tag every share against substitution, and secrets may be UTF-8
 text. The CLI wraps all of it:

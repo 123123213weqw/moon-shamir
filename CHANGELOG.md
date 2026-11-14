@@ -1,5 +1,48 @@
 # Changelog
 
+## 0.7.0 — 2026-11-14
+
+Four additions to the boundary, one honest field, and the evidence to
+match.
+
+quorum_check is the planner's view beside check's count: the counted
+fields ride unchanged (shares, threshold, gap, ready) beside excess,
+quorums - how many distinct minimal quorums the set forms, C(count,
+threshold) by an overflow-checked UInt64 multiplicative formula,
+exact until the count passes the 2^53 integers a JSON double carries
+and null past it (C(255, 8) is the last exact value at the share
+ceiling, and the oracle walks the boundary against math.comb) - and
+crosscheck_ready, whether the extras are enough for cross-validation.
+combine and verify grow the crosscheck switch: the shares beyond the
+interpolating quorum are evaluated against the polynomial the quorum
+determines and never enter the interpolation; the response carries
+crosschecked, consistent and suspects, a disagreeing extra closes the
+verdict, and without the switch the behavior is byte-identical to
+before. split takes an audit label the report carries verbatim -
+1..256 bytes of printable UTF-8, never in the shares, covered by
+neither the integrity label nor the fingerprint. fingerprint's
+response and info carry each share's own 8-hex-digit id - the first 4
+bytes of SHA-256 over the same canonical image the set id hashes -
+for paper reconciliation without a collection ceremony. kdf answers
+memory_hard: false and documents the Argon2id substitution beside the
+field, because PBKDF2 trades time, not memory, and a response that
+names its own weakness class cannot be quoted selectively.
+
+Around them: two generated laws (the fingerprint's
+order-insensitivity, subset-distinctness and per-share distinctness;
+the rotation's recovery on fresh quorums, strided quorums and the old
+generation), eighteen new malformed-input refusals (96 pinned, the
+count in usage.md moving with the code), and a diagnose bench at the
+enumeration ceiling - C(12, 6) = 924 subsets, one corrupted payload -
+with the baseline entry written deliberately beside it. The
+host-check push's exclude pattern had never matched anything: rsync
+matches patterns against paths inside the transfer, so the pinned
+answers traveled like every other file and one push clobbered the
+engine's fresh re-pin with a local stale copy; the pattern is fixed,
+and the trap joins CONTRIBUTING's rsync list. boundaries.md carries
+the honesty lines for all of it. 53 test declarations, 14 fixture
+cases, 14 pinned examples, 96 pinned refusals, 121 refusal messages.
+
 ## 0.6.1 — 2026-11-14
 
 The documentation-and-discipline release; no engine code changed, so
