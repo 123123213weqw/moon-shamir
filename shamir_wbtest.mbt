@@ -880,3 +880,54 @@ test "split_with_defaults is the one-call split at the default choices" {
   }
   assert_eq(refused, "threshold must be a whole number 2..255")
 }
+
+///|
+test "quorum_check plans without recovering: gap, excess, quorums, crosscheck" {
+  let report = split_with_defaults("cafebabe", 3, 5)
+  let shares = match get(report, "share_list") {
+    Array(items) => items
+    _ => abort("share_list missing")
+  }
+  // Two shares of a 3-threshold split: below the quorum, no way to
+  // recover, no cross-validation possible - and nothing secret-shaped.
+  let short = run(
+    record([
+      ("operation", String("quorum_check")),
+      ("shares", Array([shares[0], shares[4]])),
+    ]),
+  )
+  assert_eq(get(short, "shares"), Number(2))
+  assert_eq(get(short, "threshold"), Number(3))
+  assert_eq(get(short, "gap"), Number(1))
+  assert_eq(get(short, "ready"), Bool(false))
+  assert_eq(get(short, "excess"), Number(0))
+  assert_eq(get(short, "quorums"), Number(0))
+  assert_eq(get(short, "crosscheck_ready"), Bool(false))
+  assert_eq(has(short, "secret_hex"), false)
+  // The full set: five shares of threshold three form C(5, 3) = 10
+  // distinct minimal quorums, two shares beyond the interpolating one.
+  let full = run(
+    record([
+      ("operation", String("quorum_check")),
+      ("shares", Array(shares)),
+    ]),
+  )
+  assert_eq(get(full, "gap"), Number(0))
+  assert_eq(get(full, "ready"), Bool(true))
+  assert_eq(get(full, "excess"), Number(2))
+  assert_eq(get(full, "quorums"), Number(10))
+  assert_eq(get(full, "crosscheck_ready"), Bool(true))
+}
+
+///|
+test "quorum counting is exact until 2^53 says stop" {
+  assert_eq(quorums_exact(5, 3), Number(10.0))
+  assert_eq(quorums_exact(3, 3), Number(1.0))
+  assert_eq(quorums_exact(2, 3), Number(0.0))
+  assert_eq(quorums_exact(255, 7), Number(12801990477375.0))
+  // C(255, 8) is the last exact value at the share ceiling...
+  assert_eq(quorums_exact(255, 8), Number(396861704798625.0))
+  // ...C(255, 9) is past the integers a double carries exactly, and
+  // Null says so instead of approximating.
+  assert_eq(quorums_exact(255, 9), Null)
+}

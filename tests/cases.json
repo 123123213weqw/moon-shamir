@@ -1,200 +1,292 @@
 [
-  {
-    "name": "split fixed secret",
-    "request": {
-      "operation": "split",
-      "secret_hex": "cafebabe",
-      "threshold": 2,
-      "shares": 3,
-      "seed": 7
-    },
-    "expected": {
-      "algorithm": "shamir-gf256",
-      "secret_bytes": 4,
-      "threshold": 2,
-      "shares": 3,
-      "digest": "b51d571d",
-      "share_encoding": "hex",
-      "commit": "crc32"
-    }
+ {
+  "name": "split fixed secret",
+  "request": {
+   "operation": "split",
+   "secret_hex": "cafebabe",
+   "threshold": 2,
+   "shares": 3,
+   "seed": 7
   },
-  {
-    "name": "split error threshold below two",
-    "error": "threshold must be a whole number 2..255",
-    "request": {
-      "operation": "split",
-      "secret_hex": "ab",
-      "threshold": 1,
-      "shares": 3
-    }
-  },
-  {
-    "name": "split error shares below threshold",
-    "error": "shares must be at least the threshold: 4",
-    "request": {
-      "operation": "split",
-      "secret_hex": "ab",
-      "threshold": 4,
-      "shares": 3
-    }
-  },
-  {
-    "name": "combine error below threshold",
-    "error": "need at least 3 shares to combine, got 2",
-    "request": {
-      "operation": "combine",
-      "shares": [
-        {
-          "index": 1,
-          "threshold": 3,
-          "digest": "00000000",
-          "data": "ab"
-        },
-        {
-          "index": 2,
-          "threshold": 3,
-          "digest": "00000000",
-          "data": "cd"
-        }
-      ]
-    }
-  },
-  {
-    "name": "diagnose names corrupted share",
-    "request": {
-      "operation": "diagnose",
-      "shares": [
-        {
-          "index": 1,
-          "threshold": 2,
-          "digest": "59bc5767",
-          "data": "9b"
-        },
-        {
-          "index": 2,
-          "threshold": 2,
-          "digest": "59bc5767",
-          "data": "c3"
-        },
-        {
-          "index": 3,
-          "threshold": 2,
-          "digest": "59bc5767",
-          "data": "ff"
-        }
-      ]
-    },
-    "expected": {
-      "consistent": true,
-      "suspects": [
-        3
-      ],
-      "good": [
-        1,
-        2
-      ]
-    }
-  },
-  {
-    "name": "verify reports consistency without the secret",
-    "request": {
-      "operation": "verify",
-      "shares": [
-        {
-          "index": 1,
-          "threshold": 2,
-          "digest": "59bc5767",
-          "data": "9b"
-        },
-        {
-          "index": 2,
-          "threshold": 2,
-          "digest": "59bc5767",
-          "data": "c3"
-        }
-      ]
-    },
-    "expected": {
-      "verified": true,
-      "secret_length": 1
-    }
-  },
-  {
-    "name": "words split recovers like hex",
-    "request": {
-      "operation": "split",
-      "secret_hex": "5a",
-      "threshold": 2,
-      "shares": 3,
-      "seed": 1,
-      "share_encoding": "words"
-    },
-    "expected": {
-      "share_encoding": "words",
-      "secret_bytes": 1
-    }
-  },
-  {
-    "name": "sort orders a shuffled below-threshold pair",
-    "request": {
-      "operation": "sort",
-      "shares": [
-        {
-          "index": 3,
-          "threshold": 2,
-          "digest": "b51d571d",
-          "data": "a8dabcf8"
-        },
-        {
-          "index": 1,
-          "threshold": 2,
-          "digest": "b51d571d",
-          "data": "1de2b875"
-        }
-      ]
-    },
-    "expected": {
-      "shares": 2,
-      "threshold": 2,
-      "share_encoding": "hex",
-      "share_list": [
-        {
-          "index": 1,
-          "threshold": 2,
-          "digest": "b51d571d",
-          "commit": "crc32",
-          "data": "1de2b875",
-          "encoding": "hex"
-        },
-        {
-          "index": 3,
-          "threshold": 2,
-          "digest": "b51d571d",
-          "commit": "crc32",
-          "data": "a8dabcf8",
-          "encoding": "hex"
-        }
-      ]
-    }
-  },
-  {
-    "name": "check counts the gap below the threshold",
-    "request": {
-      "operation": "check",
-      "shares": [
-        {
-          "index": 3,
-          "threshold": 2,
-          "digest": "b51d571d",
-          "data": "a8dabcf8"
-        }
-      ]
-    },
-    "expected": {
-      "shares": 1,
-      "threshold": 2,
-      "gap": 1,
-      "ready": false
-    }
+  "expected": {
+   "algorithm": "shamir-gf256",
+   "secret_bytes": 4,
+   "threshold": 2,
+   "shares": 3,
+   "digest": "b51d571d",
+   "share_encoding": "hex",
+   "commit": "crc32"
   }
+ },
+ {
+  "name": "split error threshold below two",
+  "error": "threshold must be a whole number 2..255",
+  "request": {
+   "operation": "split",
+   "secret_hex": "ab",
+   "threshold": 1,
+   "shares": 3
+  }
+ },
+ {
+  "name": "split error shares below threshold",
+  "error": "shares must be at least the threshold: 4",
+  "request": {
+   "operation": "split",
+   "secret_hex": "ab",
+   "threshold": 4,
+   "shares": 3
+  }
+ },
+ {
+  "name": "combine error below threshold",
+  "error": "need at least 3 shares to combine, got 2",
+  "request": {
+   "operation": "combine",
+   "shares": [
+    {
+     "index": 1,
+     "threshold": 3,
+     "digest": "00000000",
+     "data": "ab"
+    },
+    {
+     "index": 2,
+     "threshold": 3,
+     "digest": "00000000",
+     "data": "cd"
+    }
+   ]
+  }
+ },
+ {
+  "name": "diagnose names corrupted share",
+  "request": {
+   "operation": "diagnose",
+   "shares": [
+    {
+     "index": 1,
+     "threshold": 2,
+     "digest": "59bc5767",
+     "data": "9b"
+    },
+    {
+     "index": 2,
+     "threshold": 2,
+     "digest": "59bc5767",
+     "data": "c3"
+    },
+    {
+     "index": 3,
+     "threshold": 2,
+     "digest": "59bc5767",
+     "data": "ff"
+    }
+   ]
+  },
+  "expected": {
+   "consistent": true,
+   "suspects": [
+    3
+   ],
+   "good": [
+    1,
+    2
+   ]
+  }
+ },
+ {
+  "name": "verify reports consistency without the secret",
+  "request": {
+   "operation": "verify",
+   "shares": [
+    {
+     "index": 1,
+     "threshold": 2,
+     "digest": "59bc5767",
+     "data": "9b"
+    },
+    {
+     "index": 2,
+     "threshold": 2,
+     "digest": "59bc5767",
+     "data": "c3"
+    }
+   ]
+  },
+  "expected": {
+   "verified": true,
+   "secret_length": 1
+  }
+ },
+ {
+  "name": "words split recovers like hex",
+  "request": {
+   "operation": "split",
+   "secret_hex": "5a",
+   "threshold": 2,
+   "shares": 3,
+   "seed": 1,
+   "share_encoding": "words"
+  },
+  "expected": {
+   "share_encoding": "words",
+   "secret_bytes": 1
+  }
+ },
+ {
+  "name": "sort orders a shuffled below-threshold pair",
+  "request": {
+   "operation": "sort",
+   "shares": [
+    {
+     "index": 3,
+     "threshold": 2,
+     "digest": "b51d571d",
+     "data": "a8dabcf8"
+    },
+    {
+     "index": 1,
+     "threshold": 2,
+     "digest": "b51d571d",
+     "data": "1de2b875"
+    }
+   ]
+  },
+  "expected": {
+   "shares": 2,
+   "threshold": 2,
+   "share_encoding": "hex",
+   "share_list": [
+    {
+     "index": 1,
+     "threshold": 2,
+     "digest": "b51d571d",
+     "commit": "crc32",
+     "data": "1de2b875",
+     "encoding": "hex"
+    },
+    {
+     "index": 3,
+     "threshold": 2,
+     "digest": "b51d571d",
+     "commit": "crc32",
+     "data": "a8dabcf8",
+     "encoding": "hex"
+    }
+   ]
+  }
+ },
+ {
+  "name": "check counts the gap below the threshold",
+  "request": {
+   "operation": "check",
+   "shares": [
+    {
+     "index": 3,
+     "threshold": 2,
+     "digest": "b51d571d",
+     "data": "a8dabcf8"
+    }
+   ]
+  },
+  "expected": {
+   "shares": 1,
+   "threshold": 2,
+   "gap": 1,
+   "ready": false
+  }
+ },
+ {
+  "name": "quorum_check counts the gap below the quorum",
+  "request": {
+   "operation": "quorum_check",
+   "shares": [
+    {
+     "index": 1,
+     "threshold": 3,
+     "digest": "8407759b",
+     "commit": "crc32",
+     "encoding": "hex",
+     "data": "89ecf44f638ee2044c2b74a3c06be26e"
+    },
+    {
+     "index": 3,
+     "threshold": 3,
+     "digest": "8407759b",
+     "commit": "crc32",
+     "encoding": "hex",
+     "data": "ee706ac918f42ae243f37cd9eeed0905"
+    }
+   ]
+  },
+  "expected": {
+   "algorithm": "shamir-gf256",
+   "shares": 2,
+   "threshold": 3,
+   "gap": 1,
+   "ready": false,
+   "excess": 0,
+   "quorums": 0,
+   "crosscheck_ready": false
+  }
+ },
+ {
+  "name": "quorum_check counts a full set's excess and quorums",
+  "request": {
+   "operation": "quorum_check",
+   "shares": [
+    {
+     "index": 1,
+     "threshold": 3,
+     "digest": "8407759b",
+     "commit": "crc32",
+     "encoding": "hex",
+     "data": "89ecf44f638ee2044c2b74a3c06be26e"
+    },
+    {
+     "index": 2,
+     "threshold": 3,
+     "digest": "8407759b",
+     "commit": "crc32",
+     "encoding": "hex",
+     "data": "678dbcb53f2fae918741a2c1e25b0594"
+    },
+    {
+     "index": 3,
+     "threshold": 3,
+     "digest": "8407759b",
+     "commit": "crc32",
+     "encoding": "hex",
+     "data": "ee706ac918f42ae243f37cd9eeed0905"
+    },
+    {
+     "index": 4,
+     "threshold": 3,
+     "digest": "8407759b",
+     "commit": "crc32",
+     "encoding": "hex",
+     "data": "6ddda1c766d0aca0d098307c4823c27a"
+    },
+    {
+     "index": 5,
+     "threshold": 3,
+     "digest": "8407759b",
+     "commit": "crc32",
+     "encoding": "hex",
+     "data": "e42077bb410b28d3142aee644495ceeb"
+    }
+   ]
+  },
+  "expected": {
+   "algorithm": "shamir-gf256",
+   "shares": 5,
+   "threshold": 3,
+   "gap": 0,
+   "ready": true,
+   "excess": 2,
+   "quorums": 10,
+   "crosscheck_ready": true
+  }
+ }
 ]

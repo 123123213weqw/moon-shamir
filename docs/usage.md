@@ -35,6 +35,7 @@ for anything that must stay secret.
 | [info](#info) | Describes one share; a bad checksum is a finding | no |
 | [sort](#sort) | Canonical order, one uniform payload encoding | no |
 | [check](#check) | Threshold gap and readiness, counted | no |
+| [quorum_check](#quorum_check) | The planner's view: gap, excess, distinct minimal quorums, cross-validation readiness | no |
 | [kdf](#kdf) | Derives the seed a password split would use | no |
 
 The interpolation column is the honesty column: everything the scheme
@@ -184,6 +185,26 @@ one-split agreement is demanded with the same refusals by name, so
 is a valid question here (combine demands two). The report also names
 the `digest`, `commit`, `authenticated` and `payload_bytes` - and
 carries nothing secret-shaped.
+
+## quorum_check
+
+```json
+{"operation": "quorum_check", "shares": [...]}
+```
+
+The planner's view of the same question check counts. Everything
+check answers is here (`shares`, `threshold`, `gap`, `ready`, plus
+the `digest`/`commit`/`authenticated`/`payload_bytes` tail), beside
+the fields a recovery plan needs: `excess`, the shares in hand beyond
+the threshold; `quorums`, how many distinct minimal quorums the set
+forms - C(count, threshold), exact until the value passes the 2^53
+integers a JSON double carries (the same honesty the numeric seed
+field has: C(255, 9) and beyond answer `null`, because an approximate
+count would lie); and `crosscheck_ready`, true when the excess is at
+least one share, so combine's `crosscheck` mode would have something
+to validate the interpolating quorum against. Below the threshold
+`quorums` is 0 - no quorum exists - and a single share is a valid
+question, as it is for check.
 
 ## info
 

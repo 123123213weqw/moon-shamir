@@ -20,6 +20,7 @@ pub fn run(request : Value) -> Value raise InputError {
     String("fingerprint") => fingerprint_with(request)
     String("sort") => sort_with(request)
     String("check") => check_with(request)
+    String("quorum_check") => quorum_check_with(request)
     String("split_many") => split_many_with(request)
     String(other) => raise InputError("unsupported operation: " + other)
     _ => raise InputError("missing field: operation")
@@ -778,6 +779,81 @@ fn check_with(request : Value) -> Value raise InputError {
     ("threshold", Number(threshold.to_double())),
     ("gap", Number(gap.to_double())),
     ("ready", Bool(gap == 0)),
+    ("digest", String(digest_hex(sorted[0].digest))),
+    ("commit", String(sorted[0].commit)),
+    ("authenticated", Bool(sorted[0].mac != "")),
+    ("payload_bytes", Number(sorted[0].data.length().to_double())),
+  ])
+}
+
+///|
+/// C(n, k) as an exact value, or Null when exactness ends. The
+/// multiplicative formula runs in UInt64 with an overflow check at
+/// every step, so every answer it returns is the true count; a count
+/// past the integers a JSON double carries exactly (2^53 - 1, the
+/// bound the numeric seed field already honors) reports Null rather
+/// than an approximation. C(255, 8) is the last exact value at the
+/// share ceiling; C(255, 9) is already past it.
+fn quorums_exact(n : Int32, k : Int32) -> Value {
+  if k < 0 || n < k {
+    return Number(0.0)
+  }
+  let kk = if k > n - k { n - k } else { k }
+  let mut value : UInt64 = 1UL
+  for i in 0..<kk {
+    let m = (n - i).to_uint64()
+    if m != 0UL && value > 0xFFFFFFFFFFFFFFFFUL / m {
+      // The product would wrap; the true count is beyond honest
+      // reporting and Null says so.
+      return Null
+    }
+    value = value * m
+    // The division is exact by construction: C(n, i) * (n - i) is
+    // C(n, i + 1) * (i + 1).
+    value = value / (i + 1).to_uint64()
+  }
+  if value <= 9007199254740991UL {
+    Number(value.to_double())
+  } else {
+    Null
+  }
+}
+
+///|
+/// Plan a recovery without running one. The counted view is check's -
+/// shares in hand, threshold, gap, ready - and the planner's fields
+/// ride beside it: excess, how many shares are in hand beyond the
+/// threshold; quorums, how many distinct minimal quorums the set
+/// forms (C(count, threshold), exact or Null by quorums_exact's
+/// rule); and crosscheck_ready, whether the excess is enough for
+/// combine's crosscheck mode to have anything to validate. The
+/// one-split agreement is demanded with the same refusals by name;
+/// a single share is a valid question, and the report carries
+/// nothing secret-shaped.
+fn quorum_check_with(request : Value) -> Value raise InputError {
+  fields_only(request, ["operation", "shares"])
+  let raw = arr(required(request, "shares"))
+  if raw.length() < 1 || raw.length() > 255 {
+    raise InputError("shares must list 1..255 shares")
+  }
+  let parsed : Array[Share] = []
+  for entry in raw {
+    parsed.push(share_from_value(entry))
+  }
+  let sorted = shares_agreeing(parsed)
+  let count = sorted.length()
+  let threshold = sorted[0].threshold
+  let gap = if count < threshold { threshold - count } else { 0 }
+  let excess = if count > threshold { count - threshold } else { 0 }
+  record([
+    ("algorithm", String("shamir-gf256")),
+    ("shares", Number(count.to_double())),
+    ("threshold", Number(threshold.to_double())),
+    ("gap", Number(gap.to_double())),
+    ("ready", Bool(gap == 0)),
+    ("excess", Number(excess.to_double())),
+    ("quorums", quorums_exact(count, threshold)),
+    ("crosscheck_ready", Bool(gap == 0 && excess >= 1)),
     ("digest", String(digest_hex(sorted[0].digest))),
     ("commit", String(sorted[0].commit)),
     ("authenticated", Bool(sorted[0].mac != "")),
