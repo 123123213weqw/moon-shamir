@@ -346,5 +346,23 @@
    "consistent": true,
    "suspects": []
   }
+ },
+ {
+  "name": "split carries the audit label",
+  "request": {
+   "operation": "split",
+   "secret_hex": "cafebabe",
+   "threshold": 2,
+   "shares": 3,
+   "seed": 7,
+   "label": "Q4 rotation, ticket OPS-114"
+  },
+  "expected": {
+   "algorithm": "shamir-gf256",
+   "threshold": 2,
+   "shares": 3,
+   "seed": 7,
+   "label": "Q4 rotation, ticket OPS-114"
+  }
  }
 ]

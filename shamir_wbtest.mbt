@@ -988,3 +988,95 @@ test "crosscheck validates the shares beyond the quorum without letting them int
   assert_eq(exact.consistent, true)
   assert_eq(exact.verified, true)
 }
+
+///|
+test "the audit label rides in the report and nowhere else" {
+  let report = run(
+    record([
+      ("operation", String("split")),
+      ("secret_hex", String("cafebabe")),
+      ("threshold", Number(2)),
+      ("shares", Number(3)),
+      ("seed", Number(7)),
+      ("label", String("Q4 rotation, ticket OPS-114")),
+    ]),
+  )
+  assert_eq(get(report, "label"), String("Q4 rotation, ticket OPS-114"))
+  // The shares carry no label: report metadata, not share content.
+  let shares = match get(report, "share_list") {
+    Array(items) => items
+    _ => abort("share_list missing")
+  }
+  for share in shares {
+    assert_eq(has(share, "label"), false)
+  }
+  // The same (secret, seed) without a label answers the same shares -
+  // the label is not part of the split's determinism.
+  let plain = run(
+    record([
+      ("operation", String("split")),
+      ("secret_hex", String("cafebabe")),
+      ("threshold", Number(2)),
+      ("shares", Number(3)),
+      ("seed", Number(7)),
+    ]),
+  )
+  let plain_shares = match get(plain, "share_list") {
+    Array(items) => items
+    _ => abort("share_list missing")
+  }
+  assert_eq(shares, plain_shares)
+  // An empty label is refused, not defaulted to absent.
+  let empty = try {
+    let _ = run(
+      record([
+        ("operation", String("split")),
+        ("secret_hex", String("cafebabe")),
+        ("threshold", Number(2)),
+        ("shares", Number(3)),
+        ("label", String("")),
+      ]),
+    )
+    false
+  } catch {
+    InputError(message) => message == "label must not be empty"
+  }
+  assert_eq(empty, true)
+  // One byte over the ceiling is a refusal that names the bound.
+  let mut oversized_label = ""
+  for _ in 0..<257 {
+    oversized_label = oversized_label + "a"
+  }
+  let oversized = try {
+    let _ = run(
+      record([
+        ("operation", String("split")),
+        ("secret_hex", String("cafebabe")),
+        ("threshold", Number(2)),
+        ("shares", Number(3)),
+        ("label", String(oversized_label)),
+      ]),
+    )
+    false
+  } catch {
+    InputError(message) => message == "label must stay within 256 bytes"
+  }
+  assert_eq(oversized, true)
+  // Control characters are refused: the label is audit text a human
+  // reads, on paper or in a log line.
+  let control = try {
+    let _ = run(
+      record([
+        ("operation", String("split")),
+        ("secret_hex", String("cafebabe")),
+        ("threshold", Number(2)),
+        ("shares", Number(3)),
+        ("label", String("bad\ngood")),
+      ]),
+    )
+    false
+  } catch {
+    InputError(message) => message == "label must be printable text"
+  }
+  assert_eq(control, true)
+}

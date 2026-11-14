@@ -70,10 +70,18 @@ runs it at all.
   (a silent no-op would lie), and reshare carries the mac through
   without needing the key.
 
+- `label` - optional audit text the report carries verbatim: what the
+  batch was for, who requested it, a ticket number. 1..256 bytes of
+  printable UTF-8 (control characters refused). It rides in the
+  report only, never in the shares, so it is covered by neither the
+  integrity label nor the fingerprint - report metadata, not share
+  content, and the split's honesty depends on it not at all.
+
 The report carries `secret_bytes`, `threshold`, `shares`, `seed`,
 `share_encoding`, `commit`, the `digest` label of the secret, and
 `share_list` - one object per share with `index` (its x, 1..255),
-`threshold`, `digest`, `commit`, `data`, `encoding`. The same
+`threshold`, `digest`, `commit`, `data`, `encoding` - plus `label`
+when the request carried one. The same
 `(secret, seed)` reproduces the same shares on every backend.
 
 ## split_many

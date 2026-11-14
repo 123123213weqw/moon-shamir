@@ -160,6 +160,7 @@ fn split_with(request : Value) -> Value raise InputError {
   fields_only(request, [
     "operation", "secret_hex", "secret_text", "threshold", "shares", "seed", "seed_hex",
     "share_encoding", "commit", "password", "salt_hex", "iterations", "mac_key_hex",
+    "label",
   ])
   let mac_key = read_mac_key(request)
   let secret = match (get(request, "secret_hex"), get(request, "secret_text")) {
@@ -195,7 +196,7 @@ fn split_with(request : Value) -> Value raise InputError {
   // arrive intact through JSON; the bound is part of the contract.
   let seed_and_kdf = read_seed_or_password(request, [
     "operation", "secret_hex", "secret_text", "threshold", "shares", "seed", "seed_hex",
-    "share_encoding", "commit", "password", "salt_hex", "iterations",
+    "share_encoding", "commit", "password", "salt_hex", "iterations", "label",
   ])
   let seed = seed_and_kdf.0
   let commit = match get(request, "commit") {
@@ -216,6 +217,30 @@ fn split_with(request : Value) -> Value raise InputError {
         "share_encoding must be hex, base64 or words, found: " + other,
       )
     _ => raise InputError("share_encoding must be hex, base64 or words")
+  }
+  // The audit label: caller-chosen text the report carries verbatim -
+  // what a batch was for, who requested it, a ticket number. It rides
+  // in the report only, never in the shares, so it is covered by
+  // neither the integrity label nor the fingerprint; the split's
+  // honesty depends on it not at all.
+  let label = match get(request, "label") {
+    Null => ""
+    other => {
+      let text = str(other)
+      let bytes = utf8_bytes(text)
+      if bytes.is_empty() {
+        raise InputError("label must not be empty")
+      }
+      if bytes.length() > 256 {
+        raise InputError("label must stay within 256 bytes")
+      }
+      for byte in bytes {
+        if byte < 32 || byte == 127 {
+          raise InputError("label must be printable text")
+        }
+      }
+      text
+    }
   }
   let generated = shamir_split(
     secret,
@@ -244,6 +269,9 @@ fn split_with(request : Value) -> Value raise InputError {
     ),
     ("share_list", Array(encoded)),
   ]
+  if label != "" {
+    fields.push(("label", String(label)))
+  }
   append_seed_fields(fields, seed)
   record(fields)
 }
