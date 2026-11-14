@@ -19,7 +19,7 @@ moon_home=/tmp/moon-latest-test
 root="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$root"
 echo "== push: tracked paths to $host"
-rsync -a --delete --exclude 'examples/expected' ./examples/ "$host:moon-shamir/examples/"
+rsync -a --delete --exclude 'expected' ./examples/ "$host:moon-shamir/examples/"
 rsync -a --delete ./cmd/ "$host:moon-shamir/cmd/"
 rsync -a --delete ./scripts/ "$host:moon-shamir/scripts/"
 rsync -a --delete ./tests/ "$host:moon-shamir/tests/"

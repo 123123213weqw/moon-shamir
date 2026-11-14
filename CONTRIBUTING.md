@@ -63,6 +63,14 @@ in this repository's history.
   the file on the host too - or host-check.sh's pin-if-missing never
   fires and the ladder compares a stale answer against the new
   engine.
+- **rsync matches exclude patterns against paths inside the transfer,
+  not against paths on disk.** The push once wrote
+  `--exclude 'examples/expected'` over a transfer rooted at
+  `./examples/` - a pattern that matches nothing, so the pinned
+  answers traveled like every other file and a push clobbered the
+  engine's fresh re-pin with a local stale copy. The working pattern
+  is `expected`, relative to the transfer root; when an exclusion
+  seems to do nothing, that is the first place to look.
 - **`git add -A` is only as safe as the `.gitignore` under it.** The
   whitelist mode here makes the add structurally safe at the repo
   root; it does nothing for a command run one directory over. Run
