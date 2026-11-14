@@ -694,6 +694,17 @@ fn shamir_fingerprint(shares : Array[Share]) -> String raise InputError {
 }
 
 ///|
+/// One share's short id: the first 4 bytes of SHA-256 over the same
+/// canonical image the set fingerprint hashes - 8 hex digits a paper
+/// holder can compare by eye, per sheet, without collecting anything.
+/// Two shares of one split differ (their images carry index and
+/// payload); two descriptions of one share agree, whatever encoding
+/// it arrived in; one flipped payload byte changes the id.
+fn share_id(share : Share) -> String {
+  to_hex(sha256_raw(share_image(share))[:4].to_owned())
+}
+
+///|
 test "fingerprint is order-insensitive and flip-sensitive" {
   let secret : Array[Int32] = [1, 2, 3, 4]
   let shares = shamir_split(secret, 2, 4, 20261109, "crc32", [])

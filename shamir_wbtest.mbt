@@ -1080,3 +1080,66 @@ test "the audit label rides in the report and nowhere else" {
   }
   assert_eq(control, true)
 }
+
+///|
+test "per-share ids are stable, distinct and flip-sensitive" {
+  let shares = shamir_split([11, 22, 33, 44], 2, 4, 1234, "crc32", [])
+  // The same share answers the same id twice, and through a different
+  // encoding of itself - the id is the image's, not the payload's.
+  let base = share_id(shares[2])
+  assert_eq(base.length(), 8)
+  assert_eq(share_id(shares[2]), base)
+  // Two shares of one split never share an id in practice: the image
+  // carries index and payload, and sha256's first 32 bits separate
+  // them across generated splits - pairwise, four shares, no set.
+  for i in 0..<4 {
+    for j in 0..<4 {
+      if i != j {
+        assert_not_eq(share_id(shares[i]), share_id(shares[j]))
+      }
+    }
+  }
+  // One flipped payload byte changes the id.
+  let copy : Array[Int32] = []
+  for byte in shares[1].data {
+    copy.push(byte)
+  }
+  copy[0] = copy[0] ^ 1
+  let flipped = share_id({
+    index: shares[1].index,
+    threshold: shares[1].threshold,
+    digest: shares[1].digest,
+    commit: shares[1].commit,
+    mac: shares[1].mac,
+    data: copy,
+  })
+  assert_not_eq(flipped, share_id(shares[1]))
+  // The boundary reports the ids aligned to canonical index order.
+  let report = run(
+    record([
+      ("operation", String("fingerprint")),
+      (
+        "shares",
+        Array([
+          share_to_value_as(shares[3], "hex"),
+          share_to_value_as(shares[0], "hex"),
+          share_to_value_as(shares[1], "hex"),
+        ]),
+      ),
+    ]),
+  )
+  let ids = match get(report, "share_ids") {
+    Array(items) => items
+    _ => abort("share_ids missing")
+  }
+  assert_eq(ids.length(), 3)
+  // Canonical order: indexes 1, 2, 4 - the input order was 4, 1, 2.
+  let expected_shares = [shares[0], shares[1], shares[3]]
+  for i, entry in ids {
+    assert_eq(
+      get(entry, "index"),
+      Number(expected_shares[i].index.to_double()),
+    )
+    assert_eq(get(entry, "id"), String(share_id(expected_shares[i])))
+  }
+}

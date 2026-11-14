@@ -132,6 +132,8 @@ if (command === 'split' && (args.length >= 3 && args.length <= 5)) {
   const report = call({operation: 'fingerprint', shares: gatherShares(args)});
   console.log(`fingerprint ${report.fingerprint}  shares ${report.shares}` +
     `  threshold ${report.threshold}`);
+  const ids = report.share_ids.map((s) => s.index + ':' + s.id).join(' ');
+  console.log(`ids ${ids}`);
 } else if (command === 'sort' && args.length >= 1) {
   // sort [encoding] <share> <share> ... - canonical order, uniform payload
   // encoding (hex by default), no recovery attempted.

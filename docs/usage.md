@@ -177,6 +177,13 @@ beforehand) and "is this the same batch as that one" without recovering
 anything. Order-insensitive by construction; a different subset of one
 split has a different fingerprint, because the set is what it describes.
 
+The response also carries `share_ids` - one 8-hex-digit id per share,
+each with the `index` it belongs to, in canonical order: the first 4
+bytes of SHA-256 over the same canonical image the set id hashes. This
+is the paper-reconciliation answer: each holder compares their sheet's
+id by eye, without collecting shares, and one flipped payload byte
+changes an id. info reports the same id for a single share.
+
 ## sort
 
 ```json
@@ -235,7 +242,8 @@ question, as it is for check.
 ```
 
 Describe one share without recovering anything: its x, threshold,
-label, commitment kind, encoding, payload length, whether it carries a
+label, commitment kind, its 8-hex-digit short `id` (the per-share id
+fingerprint reports for the set), payload length, whether it carries a
 mac, and - for words shares - whether the embedded checksum verifies. A
 bad checksum is a finding (`checksum_ok: false`), not a refusal; info
 exists to say what is in hand, including what is wrong with it.

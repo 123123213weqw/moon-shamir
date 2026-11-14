@@ -712,6 +712,7 @@ fn info_with(request : Value) -> Value raise InputError {
         ("threshold", Number(share.threshold.to_double())),
         ("digest", String(digest_hex(share.digest))),
         ("commit", String(share.commit)),
+        ("id", String(share_id(share))),
         ("authenticated", Bool(share.mac != "")),
         ("payload_bytes", Number(share.data.length().to_double())),
         ("checksum_ok", Bool(checksum_ok)),
@@ -756,6 +757,9 @@ fn info_with(request : Value) -> Value raise InputError {
 /// correctly" and "is this the same batch as that one". Takes any
 /// number of shares of one split (they must agree on threshold, label
 /// and commitment; order does not matter) and answers 16 hex digits.
+/// Beside the set id, every share gets its own 8-hex-digit id - the
+/// per-sheet answer for paper reconciliation - listed with the index
+/// it belongs to, in canonical index order.
 fn fingerprint_with(request : Value) -> Value raise InputError {
   fields_only(request, ["operation", "shares"])
   let raw = arr(required(request, "shares"))
@@ -766,11 +770,26 @@ fn fingerprint_with(request : Value) -> Value raise InputError {
   for entry in raw {
     parsed.push(share_from_value(entry))
   }
+  // The set fingerprint validates the one-split discipline (distinct
+  // indexes included) before the ids are minted against the canonical
+  // order it hashes.
+  let fingerprint = shamir_fingerprint(parsed)
+  let sorted = shares_sorted(parsed)
+  let ids : Array[Value] = []
+  for share in sorted {
+    ids.push(
+      record([
+        ("index", Number(share.index.to_double())),
+        ("id", String(share_id(share))),
+      ]),
+    )
+  }
   record([
     ("algorithm", String("shamir-gf256")),
     ("shares", Number(parsed.length().to_double())),
     ("threshold", Number(parsed[0].threshold.to_double())),
-    ("fingerprint", String(shamir_fingerprint(parsed))),
+    ("fingerprint", String(fingerprint)),
+    ("share_ids", Array(ids)),
   ])
 }
 
