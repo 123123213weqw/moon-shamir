@@ -242,6 +242,7 @@ test "property: split_many position i equals a standalone split at seed+i" {
     count=150,
   )
 }
+
 ///|
 /// The fingerprint law on generated parameters: the set id is
 /// order-insensitive, two different subsets of one generated split
@@ -315,6 +316,7 @@ test "property: distinct share sets answer distinct fingerprints" {
     count=200,
   )
 }
+
 ///|
 /// The rotation law on generated parameters: reshare mints a fresh
 /// generation at a rising-or-equal threshold, the new generation's
@@ -367,7 +369,7 @@ test "property: reshare then combine returns the generated secret" {
       if new_count > new_threshold {
         let wide : Array[Share] = []
         for i in 0..<new_count {
-          if (i * 3) % new_count < new_threshold {
+          if i * 3 % new_count < new_threshold {
             wide.push(minted[i])
           }
         }
