@@ -1,0 +1,55 @@
+{
+  "algorithm": "shamir-gf256",
+  "secret_bytes": 16,
+  "threshold": 3,
+  "shares": 5,
+  "share_encoding": "hex",
+  "commit": "crc32",
+  "authenticated": false,
+  "digest": "8407759b",
+  "seed_derivation": "direct",
+  "share_list": [
+    {
+      "index": 1,
+      "threshold": 3,
+      "digest": "8407759b",
+      "commit": "crc32",
+      "data": "89ecf44f638ee2044c2b74a3c06be26e",
+      "encoding": "hex"
+    },
+    {
+      "index": 2,
+      "threshold": 3,
+      "digest": "8407759b",
+      "commit": "crc32",
+      "data": "678dbcb53f2fae918741a2c1e25b0594",
+      "encoding": "hex"
+    },
+    {
+      "index": 3,
+      "threshold": 3,
+      "digest": "8407759b",
+      "commit": "crc32",
+      "data": "ee706ac918f42ae243f37cd9eeed0905",
+      "encoding": "hex"
+    },
+    {
+      "index": 4,
+      "threshold": 3,
+      "digest": "8407759b",
+      "commit": "crc32",
+      "data": "6ddda1c766d0aca0d098307c4823c27a",
+      "encoding": "hex"
+    },
+    {
+      "index": 5,
+      "threshold": 3,
+      "digest": "8407759b",
+      "commit": "crc32",
+      "data": "e42077bb410b28d3142aee644495ceeb",
+      "encoding": "hex"
+    }
+  ],
+  "seed": 20261104,
+  "seed_hex": "00000000013528f0"
+}

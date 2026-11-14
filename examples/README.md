@@ -19,6 +19,7 @@ quietly stop being true.
 | check.json | Two shares of a 3-threshold split counted: gap 1, not ready, nothing recovered. |
 | reshare.json | Shares 1, 3 and 5 of the split.json split re-minted as a 4-of-6 generation at a fresh seed, on x coordinates the old set never occupied. |
 | reshare-combine.json | Four shares of that new generation, shuffled, recovering the original secret - the rotation changed the shares and kept the secret. |
+| threat-demo.json | The seed-replay demonstration: this request is split.json's, byte for byte, seed included - and the pinned answer is therefore split.expected.json, byte for byte. The reproducibility that makes the scheme auditable is the same fact that makes the seed exactly as sensitive as the secret; see docs/threat-model.md, adversary 5. |
 
 Reproduce any of them by hand:
 
