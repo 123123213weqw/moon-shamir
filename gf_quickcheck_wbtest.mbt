@@ -242,3 +242,76 @@ test "property: split_many position i equals a standalone split at seed+i" {
     count=150,
   )
 }
+///|
+/// The fingerprint law on generated parameters: the set id is
+/// order-insensitive, two different subsets of one generated split
+/// answer different set ids, and every share of the split answers its
+/// own distinct short id. "The set is what it describes" checked
+/// generatively - the hash's collision resistance doing the heavy
+/// lifting, exactly as it does for every caller.
+test "property: distinct share sets answer distinct fingerprints" {
+  @quickcheck.check(
+    (words : Array[Int32]) => {
+      if words.length() < 8 {
+        return true
+      }
+      let length = 1 + (words[3] & 0x3)
+      let secret : Array[Int32] = []
+      for i in 0..<length {
+        secret.push(words[i] & 0xFF)
+      }
+      let threshold = 2 + (words[4] & 0x7)
+      let shares = threshold + (words[5] & 0x3)
+      let seed = ((words[6] & 0xFFFF).to_int64() << 16) |
+        (words[7] & 0xFFFF).to_int64()
+      let split = shamir_split(
+        secret,
+        threshold,
+        shares,
+        seed.reinterpret_as_uint64(),
+        "crc32",
+        [],
+      )
+      // The set id is order-insensitive: the same subset in two orders
+      // answers one fingerprint.
+      let a : Array[Share] = []
+      for i in 0..<threshold {
+        a.push(split[i])
+      }
+      let forward = shamir_fingerprint(a)
+      let backward_list : Array[Share] = []
+      for i in 0..<threshold {
+        backward_list.push(a[threshold - 1 - i])
+      }
+      let backward = shamir_fingerprint(backward_list)
+      if forward != backward {
+        return false
+      }
+      // A second subset - the same quorum with one member swapped for
+      // a share beyond it - answers a different id. Only askable when
+      // the split minted more shares than the threshold.
+      if shares > threshold {
+        let b : Array[Share] = []
+        for i in 0..<(threshold - 1) {
+          b.push(split[i])
+        }
+        b.push(split[shares - 1])
+        if shamir_fingerprint(b) == forward {
+          return false
+        }
+      }
+      // Every share of the split answers its own short id, distinct
+      // across the whole generated split - pairwise, no set needed at
+      // twelve shares.
+      for i in 0..<shares {
+        for j in 0..<shares {
+          if i != j && share_id(split[i]) == share_id(split[j]) {
+            return false
+          }
+        }
+      }
+      true
+    },
+    count=200,
+  )
+}
