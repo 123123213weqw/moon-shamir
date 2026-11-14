@@ -1,5 +1,8 @@
 # Moon Shamir
 
+[![CI](https://github.com/123123213weqw/moon-shamir/actions/workflows/ci.yml/badge.svg)](https://github.com/123123213weqw/moon-shamir/actions/workflows/ci.yml)
+[![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
+
 Threshold secret sharing over GF(256): split a secret into n shares of
 which any k recover it, in pure MoonBit with a JSON CLI and reusable
 library API.
