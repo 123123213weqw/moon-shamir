@@ -24,3 +24,10 @@
 # Build and host artifacts never travel.
 _build
 __pycache__
+# Droppings inside the whitelisted trees: the whitelist opens docs/,
+# scripts/, tests/ and friends wholesale, so a macOS .DS_Store or a
+# __pycache__ beside the tracked files there would otherwise be
+# trackable - these patterns close that gap.
+.DS_Store
+*.pyc
+*.tmp
