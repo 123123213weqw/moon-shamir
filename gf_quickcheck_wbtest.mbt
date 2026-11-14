@@ -315,3 +315,78 @@ test "property: distinct share sets answer distinct fingerprints" {
     count=200,
   )
 }
+///|
+/// The rotation law on generated parameters: reshare mints a fresh
+/// generation at a rising-or-equal threshold, the new generation's
+/// quorums recover the generated secret, and the old shares still do -
+/// the rotation changed the shares and kept the secret, on inputs the
+/// generator picks.
+test "property: reshare then combine returns the generated secret" {
+  @quickcheck.check(
+    (words : Array[Int32]) => {
+      if words.length() < 10 {
+        return true
+      }
+      let length = 1 + (words[3] & 0x3)
+      let secret : Array[Int32] = []
+      for i in 0..<length {
+        secret.push(words[i] & 0xFF)
+      }
+      let threshold = 2 + (words[4] & 0x3)
+      let shares = threshold + (words[5] & 0x3)
+      let seed = ((words[6] & 0xFFFF).to_int64() << 16) |
+        (words[7] & 0xFFFF).to_int64()
+      let split = shamir_split(
+        secret,
+        threshold,
+        shares,
+        seed.reinterpret_as_uint64(),
+        "crc32",
+        [],
+      )
+      let new_threshold = threshold + (words[8] & 0x3)
+      let new_count = new_threshold + (words[9] & 0x3)
+      let new_seed = ((words[8] & 0xFFFF).to_int64() << 16) |
+        (words[9] & 0xFFFF).to_int64()
+      let minted = shamir_reshare(
+        split,
+        new_threshold,
+        new_count,
+        new_seed.reinterpret_as_uint64(),
+      )
+      // Any k of the new generation recover the secret: the lowest
+      // quorum, then a strided sample of a larger one.
+      let fresh : Array[Share] = []
+      for i in 0..<new_threshold {
+        fresh.push(minted[i])
+      }
+      let (recovered, verified) = shamir_combine(fresh, [])
+      if !(verified && recovered == secret) {
+        return false
+      }
+      if new_count > new_threshold {
+        let wide : Array[Share] = []
+        for i in 0..<new_count {
+          if (i * 3) % new_count < new_threshold {
+            wide.push(minted[i])
+          }
+        }
+        if wide.length() >= new_threshold {
+          let (again, ok) = shamir_combine(wide, [])
+          if !(ok && again == secret) {
+            return false
+          }
+        }
+      }
+      // The old generation still recovers too - the rotation adds a
+      // generation, it does not retire the old shares by force.
+      let old : Array[Share] = []
+      for i in 0..<threshold {
+        old.push(split[i])
+      }
+      let (_, still) = shamir_combine(old, [])
+      still
+    },
+    count=200,
+  )
+}
