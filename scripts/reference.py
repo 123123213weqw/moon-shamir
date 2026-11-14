@@ -8,7 +8,7 @@ other.
 """
 import hashlib as _hl
 import hmac as _hmacmod
-import itertools, json, random, re, subprocess, sys
+import itertools, json, math, random, re, subprocess, sys
 from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 CLI = ROOT / '_build/js/debug/build/cmd/main/main.js'
@@ -347,6 +347,7 @@ def main():
         want = derive_seed(password, salt, iterations)
         assert report["seed"] == want, f'kdf-{iteration}'
         assert report["algorithm"] == "pbkdf2-sha256", f'kdf-alg-{iteration}'
+        assert report["memory_hard"] is False, f'kdf-mem-{iteration}'
         # A password split equals the numeric-seed split of the same value.
         secret = bytes(rng.randrange(256) for _ in range(rng.randrange(1, 9))).hex()
         threshold = rng.randrange(2, 4)
@@ -723,6 +724,156 @@ def main():
         deny = run({'operation': 'verify', 'shares': made[:threshold], 'secret_hex': 'ff' * length})
         if 'ff' * length != secret:
             assert deny['verified'] is False, f'deny-{iteration}'
+        checked += 1
+    # Quorum planning: gap/excess/quorums/crosscheck_ready against
+    # Python's math.comb, the exactness boundary included - null exactly
+    # when the count exceeds what a JSON double carries.
+    for iteration in range(8):
+        length = rng.randrange(1, 13)
+        secret = bytes(rng.randrange(256) for _ in range(length)).hex()
+        threshold = rng.randrange(2, 6)
+        shares = rng.randrange(threshold, 9)
+        seed = rng.randrange(0, 1 << 32)
+        made = split(bytes.fromhex(secret), threshold, shares, seed)
+        hold = rng.randrange(1, shares + 1)
+        subset = rng.sample(made, hold)
+        rng.shuffle(subset)
+        report = run({"operation": "quorum_check", "shares": subset})
+        want = math.comb(hold, threshold) if hold >= threshold else 0
+        assert report["shares"] == hold, f'quorum-count-{iteration}'
+        assert report["gap"] == max(0, threshold - hold), f'quorum-gap-{iteration}'
+        assert report["ready"] == (hold >= threshold), f'quorum-ready-{iteration}'
+        assert report["excess"] == max(0, hold - threshold), f'quorum-excess-{iteration}'
+        if want <= (1 << 53) - 1:
+            assert report["quorums"] == want, f'quorum-binom-{iteration}'
+        else:
+            assert report["quorums"] is None, f'quorum-null-{iteration}'
+        assert report["crosscheck_ready"] == (hold >= threshold and hold > threshold), f'quorum-xr-{iteration}'
+        assert "secret_hex" not in report, f'quorum-leak-{iteration}'
+        checked += 1
+    # The exactness boundary itself: C(255, 8) exact, C(255, 9) null -
+    # and Python agrees the ninth binomial is past the double range.
+    eight = split(bytes([7, 8, 9, 4]), 8, 255, 5)
+    assert run({"operation": "quorum_check",
+        "shares": eight})["quorums"] == math.comb(255, 8), 'quorum-edge-8'
+    nine = split(bytes([7, 8, 9, 4]), 9, 255, 5)
+    assert run({"operation": "quorum_check",
+        "shares": nine})["quorums"] is None, 'quorum-edge-9'
+    assert math.comb(255, 9) > (1 << 53) - 1, 'quorum-bound-shift'
+    checked += 2
+    # Tolerance cross-validation: the extras are evaluated against the
+    # polynomial the quorum determines. The oracle interpolates f at
+    # each extra x independently and demands share-for-share agreement
+    # with the engine's audit.
+    for iteration in range(8):
+        length = rng.randrange(1, 13)
+        secret = bytes(rng.randrange(256) for _ in range(length)).hex()
+        threshold = rng.randrange(2, 5)
+        shares = rng.randrange(threshold, 9)
+        seed = rng.randrange(0, 1 << 32)
+        made = split(bytes.fromhex(secret), threshold, shares, seed)
+        hold = rng.randrange(threshold, shares + 1)
+        subset = rng.sample(made, hold)
+        rng.shuffle(subset)
+        report = run({"operation": "combine", "shares": subset,
+            "crosscheck": True})
+        assert report["verified"] is True, f'xc-clean-{iteration}'
+        assert report["secret_hex"] == secret, f'xc-secret-{iteration}'
+        ordered = sorted(subset, key=lambda s: s['index'])
+        chosen = ordered[:threshold]
+        extras = ordered[threshold:]
+        width = len(bytes.fromhex(made[0]['data']))
+        suspects = []
+        for extra in extras:
+            on_poly = True
+            for b in range(width):
+                points = [(s['index'], bytes.fromhex(s['data'])[b])
+                    for s in chosen]
+                if interpolate_at(points,
+                        extra['index']) != bytes.fromhex(extra['data'])[b]:
+                    on_poly = False
+                    break
+            if not on_poly:
+                suspects.append(extra['index'])
+        assert report["crosschecked"] == len(extras), f'xc-count-{iteration}'
+        assert report["consistent"] is (len(suspects) == 0), f'xc-consistent-{iteration}'
+        assert report["suspects"] == suspects, f'xc-suspects-{iteration}'
+        checked += 1
+    # A corrupted extra is named and closes the verdict while the
+    # recovery itself still comes from the untouched quorum - the
+    # original share was exactly f(x), so one flipped bit cannot lie
+    # on the polynomial by luck.
+    for iteration in range(6):
+        length = rng.randrange(1, 9)
+        secret = bytes(rng.randrange(256) for _ in range(length)).hex()
+        threshold = rng.randrange(2, 5)
+        shares = threshold + rng.randrange(2, 4)
+        seed = rng.randrange(0, 1 << 32)
+        made = split(bytes.fromhex(secret), threshold, shares, seed)
+        victim = made[-1]
+        data = bytearray(bytes.fromhex(victim['data']))
+        data[rng.randrange(len(data))] ^= 1 << rng.randrange(8)
+        tampered = dict(victim, data=bytes(data).hex())
+        report = run({"operation": "combine",
+            "shares": made[:threshold] + [tampered], "crosscheck": True})
+        assert report["crosschecked"] == 1, f'xc-victim-count-{iteration}'
+        assert report["consistent"] is False, f'xc-victim-consistent-{iteration}'
+        assert report["suspects"] == [victim['index']], f'xc-victim-suspect-{iteration}'
+        assert report["verified"] is False, f'xc-victim-verified-{iteration}'
+        assert report["secret_hex"] == secret, f'xc-victim-secret-{iteration}'
+        checked += 1
+    # The audit label: echoed verbatim, absent when not sent, never in
+    # the shares, not part of the split's determinism, and refused when
+    # empty, oversized or control-bearing.
+    labeled = run({"operation": "split", "secret_hex": "cafebabe",
+        "threshold": 2, "shares": 3, "seed": 7,
+        "label": "Q4 rotation, ticket OPS-114 中文"})
+    assert labeled["label"] == "Q4 rotation, ticket OPS-114 中文", 'label-echo'
+    unlabeled = run({"operation": "split", "secret_hex": "cafebabe",
+        "threshold": 2, "shares": 3, "seed": 7})
+    assert "label" not in unlabeled, 'label-absent'
+    assert labeled["share_list"] == unlabeled["share_list"], 'label-inert'
+    for share_obj in labeled["share_list"]:
+        assert "label" not in share_obj, 'label-share-leak'
+    run({"operation": "split", "secret_hex": "cafebabe", "threshold": 2,
+        "shares": 3, "label": ""}, error=True)
+    run({"operation": "split", "secret_hex": "cafebabe", "threshold": 2,
+        "shares": 3, "label": "x" * 257}, error=True)
+    run({"operation": "split", "secret_hex": "cafebabe", "threshold": 2,
+        "shares": 3, "label": "bad\nline"}, error=True)
+    checked += 4
+    # Per-share short ids: the oracle rebuilds the canonical image and
+    # hashes it independently, aligned to index order; info answers the
+    # same id for a single share.
+    def share_image_py(s):
+        out = bytearray([s['index'] & 0xFF, s['threshold'] & 0xFF])
+        out += bytes.fromhex(s['digest'])
+        for text in (s.get('commit', 'crc32'), s.get('mac', '')):
+            raw = text.encode('utf-8')
+            out.append(len(raw) & 0xFF)
+            out += raw
+        out += bytes.fromhex(s['data'])
+        return bytes(out)
+    for iteration in range(6):
+        length = rng.randrange(1, 13)
+        secret = bytes(rng.randrange(256) for _ in range(length)).hex()
+        threshold = rng.randrange(2, 5)
+        shares = rng.randrange(threshold, 9)
+        seed = rng.randrange(0, 1 << 32)
+        made = split(bytes.fromhex(secret), threshold, shares, seed)
+        subset = rng.sample(made, rng.randrange(1, shares + 1))
+        rng.shuffle(subset)
+        report = run({"operation": "fingerprint", "shares": subset})
+        ordered = sorted(subset, key=lambda s: s['index'])
+        ids = report["share_ids"]
+        assert len(ids) == len(ordered), f'sid-count-{iteration}'
+        for entry, s in zip(ids, ordered):
+            assert entry["index"] == s['index'], f'sid-idx-{iteration}'
+            assert entry["id"] == _hl.sha256(share_image_py(s)).hexdigest()[:8], \
+                f'sid-{iteration}'
+        info = run({"operation": "info", "share": made[0]})
+        assert info["id"] == _hl.sha256(
+            share_image_py(made[0])).hexdigest()[:8], f'sid-info-{iteration}'
         checked += 1
     # Refusals, each answered with one error object and exit 1.
     for bad in [
