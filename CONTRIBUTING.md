@@ -28,6 +28,46 @@ the verified tree back. The steps it automates:
 5. Commit, push. CI runs the same ladder; if it is red, the next
    commit fixes it - a red main is never left behind "for later".
 
+## The rsync traps, as a list
+
+Every line here cost either a red ladder run or a lost file somewhere
+in this repository's history.
+
+- **`--delete` rewrites the destination to mirror the source - aim it
+  deliberately.** A pull-style `rsync --delete` run from the wrong
+  working directory once emptied this repository's working tree down
+  to its ignored artifacts (`.git`, `_build` survived; everything
+  else, tracked or not, was swept). The tracked tree came back from
+  git and the host copy, but the untracked workspace beside the
+  sources had to be fetched from the host file by file. Keep the
+  `cd` and the rsync in one compound command, and name the
+  destination explicitly.
+- **Scope the transfer to tracked paths, not the directory.** rsync
+  does not read `.gitignore`; syncing `./` wholesale carries whatever
+  sits beside the sources to the host, and a `--delete` pull carries
+  host-side stragglers back. `scripts/host-check.sh` pushes and pulls
+  the tracked subdirectories and file lists only - neither side ever
+  sees what it should not touch.
+- **A `--delete` pull deletes what the host lacks.** Untracked
+  neighbors survive only while the host still holds copies of them;
+  deleting them host-side first turns the next pull into a local
+  purge. If the host is not yours alone, that purge can take someone
+  else's files with it.
+- **A pull without `--delete` resurrects deleted files.** A file
+  deleted locally but still on the host reappears on the next pull;
+  the resurrected line in `git status` is the decision point - delete
+  it again deliberately instead of letting `git add -A` re-track it.
+- **Deleting an `examples/expected/` file locally does not delete it
+  remotely.** The push excludes that directory (the engine is its
+  only writer), so a re-pin after an answer change requires removing
+  the file on the host too - or host-check.sh's pin-if-missing never
+  fires and the ladder compares a stale answer against the new
+  engine.
+- **`git add -A` is only as safe as the `.gitignore` under it.** The
+  whitelist mode here makes the add structurally safe at the repo
+  root; it does nothing for a command run one directory over. Run
+  `git status` before the add and read the untracked lines.
+
 ## Baselines refresh deliberately
 
 `tests/bench.baseline` and `tests/size.baseline` change only by an
