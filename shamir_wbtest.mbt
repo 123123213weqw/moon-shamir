@@ -1143,3 +1143,17 @@ test "per-share ids are stable, distinct and flip-sensitive" {
     assert_eq(get(entry, "id"), String(share_id(expected_shares[i])))
   }
 }
+
+///|
+test "kdf answers its own weakness class" {
+  let report = run(
+    record([
+      ("operation", String("kdf")),
+      ("password", String("paper backup")),
+      ("salt_hex", String("cafe")),
+      ("iterations", Number(1000)),
+    ]),
+  )
+  assert_eq(get(report, "algorithm"), String("pbkdf2-sha256"))
+  assert_eq(get(report, "memory_hard"), Bool(false))
+}

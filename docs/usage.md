@@ -259,6 +259,22 @@ Standalone derivation of the seed a password split would use:
 PBKDF2-HMAC-SHA256, first 7 bytes, shifted into 53 bits. Pin the seed
 before splitting, or reproduce it years later.
 
+The response carries `memory_hard: false`, and the field is the
+point: PBKDF2 trades time, not memory, so a GPU (or ASIC) attacker
+guesses passwords at hardware speed no iteration count in this
+library's range undoes. There is deliberately no `memory` parameter
+to pass - an unimplemented parameter that behaved like a default
+would be worse than its absence, and a request carrying `memory` is
+refused like every unknown field, by name. When the adversary model
+includes off-the-shelf GPU cracking, derive outside this library:
+run Argon2id (or scrypt) over the password and split **its** 16+ byte
+output as the secret - high-entropy, so the label-oracle concern of
+[security.md](security.md) does not apply to it - keeping the
+password-to-secret mapping on the caller's side. What this library's
+password path is for is pinning and reproducing a split seed, and it
+does that honestly: `iterations` 1..1000000, salt defaulted to the
+library constant, the work factor visible in the response.
+
 ## Share shapes
 
 One line on paper: `index:threshold:digest:encoding:data`, as printed by

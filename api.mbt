@@ -597,6 +597,7 @@ fn kdf_with(request : Value) -> Value raise InputError {
   seed = seed >> 3
   let report : Array[(String, Value)] = [
     ("algorithm", String("pbkdf2-sha256")),
+    ("memory_hard", Bool(false)),
     ("iterations", Number(iterations)),
     ("salt_hex", String(to_hex(salt))),
   ]

@@ -47,7 +47,7 @@ threshold never mattered. Consequences:
 | threshold refusal | recovery below k | nothing about enumeration elsewhere |
 | CRC-32 / SHA-256 label | corrupted or foreign shares | forgery (public), low-secret enumeration |
 | HMAC tag | whole-set substitution, without the key | a key holder; low-entropy secrets *with* the key leaked |
-| PBKDF2 seed path | cheap guessing of a password seed | entropy the password never had |
+| PBKDF2 seed path | cheap guessing of a password seed | entropy the password never had; GPU-speed guessing - the kdf response carries `memory_hard: false` and the substitution recipe (Argon2id outside, split its output) is in usage.md |
 
 ## Correct use, in one paragraph
 

@@ -364,5 +364,20 @@
    "seed": 7,
    "label": "Q4 rotation, ticket OPS-114"
   }
+ },
+ {
+  "name": "kdf says plainly it is not memory-hard",
+  "request": {
+   "operation": "kdf",
+   "password": "paper backup",
+   "salt_hex": "cafe",
+   "iterations": 1000
+  },
+  "expected": {
+   "algorithm": "pbkdf2-sha256",
+   "memory_hard": false,
+   "iterations": 1000,
+   "salt_hex": "cafe"
+  }
  }
 ]
