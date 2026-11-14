@@ -931,3 +931,60 @@ test "quorum counting is exact until 2^53 says stop" {
   // Null says so instead of approximating.
   assert_eq(quorums_exact(255, 9), Null)
 }
+
+///|
+test "crosscheck validates the shares beyond the quorum without letting them interpolate" {
+  let shares = shamir_split([7, 8, 9, 10], 2, 4, 99, "crc32", [])
+  // All four shares: two interpolate, two are evaluated against the
+  // polynomial the chosen pair determines - a clean split agrees.
+  let clean = shamir_combine_cross(shares, [], true)
+  assert_eq(clean.verified, true)
+  assert_eq(clean.crosschecked, 2)
+  assert_eq(clean.consistent, true)
+  assert_eq(clean.suspects, [])
+  // One flipped payload byte in an extra share: named, the verdict
+  // closes - while the recovery itself came from the untouched quorum.
+  let tampered = {
+    let copy : Array[Int32] = []
+    for byte in shares[3].data {
+      copy.push(byte)
+    }
+    copy[0] = copy[0] ^ 1
+    {
+      index: shares[3].index,
+      threshold: shares[3].threshold,
+      digest: shares[3].digest,
+      commit: shares[3].commit,
+      mac: shares[3].mac,
+      data: copy,
+    }
+  }
+  let mixed = shamir_combine_cross(
+    [shares[0], shares[1], shares[2], tampered],
+    [],
+    true,
+  )
+  assert_eq(mixed.consistent, false)
+  assert_eq(mixed.suspects, [4])
+  assert_eq(mixed.verified, false)
+  assert_eq(mixed.crosschecked, 2)
+  // The corrupted share never entered the interpolation: the secret
+  // still recovered, from the untouched quorum.
+  assert_eq(mixed.recovered, [7, 8, 9, 10])
+  // Without the switch, extras are ignored exactly as before - the
+  // default behavior is unchanged.
+  let plain = shamir_combine_cross(
+    [shares[0], shares[1], shares[2], tampered],
+    [],
+    false,
+  )
+  assert_eq(plain.verified, true)
+  assert_eq(plain.crosschecked, 0)
+  assert_eq(plain.suspects, [])
+  // Exactly the quorum: crosscheck on, nothing beyond it, consistent
+  // vacuously.
+  let exact = shamir_combine_cross([shares[0], shares[1]], [], true)
+  assert_eq(exact.crosschecked, 0)
+  assert_eq(exact.consistent, true)
+  assert_eq(exact.verified, true)
+}

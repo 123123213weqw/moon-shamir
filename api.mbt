@@ -255,7 +255,7 @@ fn split_with(request : Value) -> Value raise InputError {
 /// carried; verified is false when they disagree, which means a share was
 /// corrupted or does not belong to this split.
 fn combine_with(request : Value) -> Value raise InputError {
-  fields_only(request, ["operation", "shares", "mac_key_hex"])
+  fields_only(request, ["operation", "shares", "mac_key_hex", "crosscheck"])
   let raw = arr(required(request, "shares"))
   if raw.length() < 2 || raw.length() > 255 {
     raise InputError("shares must list 2..255 shares")
@@ -265,14 +265,29 @@ fn combine_with(request : Value) -> Value raise InputError {
     parsed.push(share_from_value(entry))
   }
   let mac_key = read_mac_key_checked(request, parsed)
-  let (recovered, verified) = shamir_combine(parsed, mac_key)
+  let crosscheck = read_crosscheck(request)
+  let outcome = shamir_combine_cross(parsed, mac_key, crosscheck)
   let fields : Array[(String, Value)] = [
     ("algorithm", String("shamir-gf256")),
-    ("secret_hex", String(to_hex(recovered))),
-    ("recovered_digest", String(digest_hex(crc32(recovered)))),
-    ("verified", Bool(verified)),
+    ("secret_hex", String(to_hex(outcome.recovered))),
+    ("recovered_digest", String(digest_hex(crc32(outcome.recovered)))),
+    ("verified", Bool(outcome.verified)),
   ]
-  match utf8_text(recovered) {
+  if crosscheck {
+    // The tolerance audit: how many shares beyond the quorum were
+    // evaluated against the polynomial, whether they all agreed, and
+    // the indexes that did not - named, as diagnose names them. The
+    // extras never entered the interpolation.
+    fields.push(("crosscheck", Bool(true)))
+    fields.push(("crosschecked", Number(outcome.crosschecked.to_double())))
+    fields.push(("consistent", Bool(outcome.consistent)))
+    let named : Array[Value] = []
+    for index in outcome.suspects {
+      named.push(Number(index.to_double()))
+    }
+    fields.push(("suspects", Array(named)))
+  }
+  match utf8_text(outcome.recovered) {
     Some(text) => fields.push(("secret_text", String(text)))
     None => ()
   }
@@ -304,7 +319,9 @@ fn diagnose_with(request : Value) -> Value raise InputError {
 /// equal it - a holder can prove a share set belongs to a known secret
 /// without the response carrying anything new.
 fn verify_with(request : Value) -> Value raise InputError {
-  fields_only(request, ["operation", "shares", "secret_hex", "mac_key_hex"])
+  fields_only(request, [
+    "operation", "shares", "secret_hex", "mac_key_hex", "crosscheck",
+  ])
   let raw = arr(required(request, "shares"))
   if raw.length() < 2 || raw.length() > 255 {
     raise InputError("shares must list 2..255 shares")
@@ -323,25 +340,49 @@ fn verify_with(request : Value) -> Value raise InputError {
     parsed.push(share_from_value(entry))
   }
   let mac_key = read_mac_key_checked(request, parsed)
-  let (recovered, verified) = shamir_combine(parsed, mac_key)
+  let crosscheck = read_crosscheck(request)
+  let outcome = shamir_combine_cross(parsed, mac_key, crosscheck)
   let matches_secret = if expected == "" {
-    verified
+    outcome.verified
   } else {
-    verified && to_hex(recovered) == expected
+    outcome.verified && to_hex(outcome.recovered) == expected
   }
-  record([
+  let fields : Array[(String, Value)] = [
     ("algorithm", String("shamir-gf256")),
     ("shares", Number(parsed.length().to_double())),
     ("threshold", Number(threshold_of(parsed).to_double())),
     ("commit", String(parsed[0].commit)),
-    ("secret_length", Number(recovered.length().to_double())),
+    ("secret_length", Number(outcome.recovered.length().to_double())),
     ("verified", Bool(matches_secret)),
-  ])
+  ]
+  if crosscheck {
+    fields.push(("crosscheck", Bool(true)))
+    fields.push(("crosschecked", Number(outcome.crosschecked.to_double())))
+    fields.push(("consistent", Bool(outcome.consistent)))
+    let named : Array[Value] = []
+    for index in outcome.suspects {
+      named.push(Number(index.to_double()))
+    }
+    fields.push(("suspects", Array(named)))
+  }
+  record(fields)
 }
 
 ///|
 fn threshold_of(shares : Array[Share]) -> Int32 {
   shares[0].threshold
+}
+
+///|
+/// The crosscheck switch of combine and verify: absent is false,
+/// present must be a boolean - anything else is a refusal, not a
+/// default to guess at.
+fn read_crosscheck(request : Value) -> Bool raise InputError {
+  match get(request, "crosscheck") {
+    Null => false
+    Bool(b) => b
+    _ => raise InputError("crosscheck must be a boolean")
+  }
 }
 
 ///|

@@ -106,6 +106,17 @@ share was corrupted or does not belong, and the bytes are meaningless
 by design. Below the threshold the operation refuses; there is no
 wrong-secret output.
 
+With `"crosscheck": true` the tolerance mode turns the extras into
+evidence: the first `threshold` shares by x still interpolate - the
+extras never enter the interpolation, with or without the switch -
+and every share beyond the quorum is evaluated against the polynomial
+the quorum determines. The response then also carries `crosscheck`,
+`crosschecked` (how many shares were evaluated), `consistent`, and
+`suspects` (the indexes that do not lie on the polynomial, named as
+diagnose names them); `verified` closes when any extra disagrees. A
+quorum handed more shares than it needs recovers anyway - the
+crosscheck is the audit of the shares it did not use.
+
 ## diagnose
 
 ```json
@@ -127,7 +138,10 @@ subset, keeps those whose recovery matches the label, and reports
 Performs the recovery and reports a verdict without returning the
 secret. With the optional `secret_hex` the verdict additionally
 requires the recovered bytes to equal it - proof that a share set
-belongs to a known secret, with nothing new in the response.
+belongs to a known secret, with nothing new in the response. verify
+takes combine's `crosscheck` switch: the same audit of the shares
+beyond the quorum, with `crosschecked`, `consistent` and `suspects`
+in the verdict and no secret anywhere in it.
 
 ## reshare
 

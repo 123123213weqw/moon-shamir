@@ -169,17 +169,33 @@ fn shamir_split(
 }
 
 ///|
+/// The full outcome of a combine: the recovered bytes, the verdict,
+/// and - when the caller asked for cross-validation - the audit of the
+/// shares beyond the interpolating quorum.
+priv struct CombineOutcome {
+  recovered : Array[Int32]
+  verified : Bool
+  crosschecked : Int32
+  consistent : Bool
+  suspects : Array[Int32]
+}
+
+///|
 /// Combine k or more shares of one split: the constant term of each
 /// byte's polynomial, interpolated at zero. The shares must agree on
 /// threshold and digest and carry distinct nonzero x coordinates; the
-/// first `threshold` shares by x are the ones interpolated. The returned
-/// pair is the recovered bytes and whether the integrity label matches -
-/// a mismatch means the shares do not belong to one secret (or one was
-/// corrupted), and the recovered bytes are then meaningless by design.
-fn shamir_combine(
+/// first `threshold` shares by x are the ones interpolated - the
+/// extras never enter the interpolation, with or without the
+/// crosscheck switch. The verdict is whether the integrity label
+/// matches (a mismatch means the shares do not belong to one secret
+/// or one was corrupted, and the recovered bytes are then meaningless
+/// by design) and, under crosscheck, whether every share beyond the
+/// quorum lies on the polynomial the quorum determines.
+fn shamir_combine_cross(
   shares : Array[Share],
   mac_key : Array[Int32],
-) -> (Array[Int32], Bool) raise InputError {
+  crosscheck : Bool,
+) -> CombineOutcome raise InputError {
   let threshold = shares[0].threshold
   let digest = shares[0].digest
   let commit = shares[0].commit
@@ -248,12 +264,63 @@ fn shamir_combine(
   // matching tags, so a mismatch means forgery or corruption. The keyed
   // check implies the unkeyed label, so it stands alone when present.
   let label_ok = commit_digest(recovered, commit) == digest
-  let verified = if mac == "" {
+  let base_verified = if mac == "" {
     label_ok
   } else {
     label_ok && mac_of(recovered, mac_key) == mac
   }
-  (recovered, verified)
+  // Cross-validation: every share beyond the interpolating quorum is
+  // evaluated against the polynomial the quorum determines - the same
+  // weighted interpolation combine already uses, at the extra share's
+  // x instead of zero. A share the split minted lies on the
+  // polynomial; a corrupted or foreign one does not. A mismatching
+  // share closes the verdict and is named, mirroring diagnose's
+  // suspects - recovery still happened, from the untouched quorum.
+  let mut crosschecked = 0
+  let suspects : Array[Int32] = []
+  if crosscheck {
+    for i in threshold..<sorted.length() {
+      let extra = sorted[i]
+      let xs : Array[(Int32, Int32)] = []
+      for share in chosen {
+        xs.push((share.index, 0))
+      }
+      let weights = gf_lagrange_weights(xs, extra.index)
+      let mut agrees = true
+      for b in 0..<width {
+        let points : Array[(Int32, Int32)] = []
+        for share in chosen {
+          points.push((share.index, share.data[b]))
+        }
+        if gf_interpolate_weighted(points, weights) != extra.data[b] {
+          agrees = false
+          break
+        }
+      }
+      crosschecked += 1
+      if !agrees {
+        suspects.push(extra.index)
+      }
+    }
+  }
+  {
+    recovered,
+    verified: base_verified && suspects.is_empty(),
+    crosschecked,
+    consistent: suspects.is_empty(),
+    suspects,
+  }
+}
+
+///|
+/// The plain pair combine has always returned: bytes and verdict, no
+/// cross-validation asked for.
+fn shamir_combine(
+  shares : Array[Share],
+  mac_key : Array[Int32],
+) -> (Array[Int32], Bool) raise InputError {
+  let outcome = shamir_combine_cross(shares, mac_key, false)
+  (outcome.recovered, outcome.verified)
 }
 
 ///|
