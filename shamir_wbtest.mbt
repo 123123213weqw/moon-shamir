@@ -907,10 +907,7 @@ test "quorum_check plans without recovering: gap, excess, quorums, crosscheck" {
   // The full set: five shares of threshold three form C(5, 3) = 10
   // distinct minimal quorums, two shares beyond the interpolating one.
   let full = run(
-    record([
-      ("operation", String("quorum_check")),
-      ("shares", Array(shares)),
-    ]),
+    record([("operation", String("quorum_check")), ("shares", Array(shares))]),
   )
   assert_eq(get(full, "gap"), Number(0))
   assert_eq(get(full, "ready"), Bool(true))
@@ -1136,10 +1133,7 @@ test "per-share ids are stable, distinct and flip-sensitive" {
   // Canonical order: indexes 1, 2, 4 - the input order was 4, 1, 2.
   let expected_shares = [shares[0], shares[1], shares[3]]
   for i, entry in ids {
-    assert_eq(
-      get(entry, "index"),
-      Number(expected_shares[i].index.to_double()),
-    )
+    assert_eq(get(entry, "index"), Number(expected_shares[i].index.to_double()))
     assert_eq(get(entry, "id"), String(share_id(expected_shares[i])))
   }
 }
