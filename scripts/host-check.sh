@@ -25,7 +25,7 @@ rsync -a --delete ./scripts/ "$host:moon-shamir/scripts/"
 rsync -a --delete ./tests/ "$host:moon-shamir/tests/"
 rsync -a --delete ./docs/ "$host:moon-shamir/docs/"
 rsync -a ./.gitignore ./LICENSE ./README.md ./CHANGELOG.md ./CONTRIBUTING.md \
-  ./THIRD_PARTY.md ./moon.mod ./moon.pkg ./*.mbt ./*.mbti "$host:moon-shamir/"
+  ./VERSIONING.md ./THIRD_PARTY.md ./moon.mod ./moon.pkg ./*.mbt ./*.mbti "$host:moon-shamir/"
 echo "== host: pin new example answers, then the full ladder"
 ssh "$host" 'cd ~/moon-shamir && set -e
   export PATH=/tmp/moon-latest-test/bin:$PATH
